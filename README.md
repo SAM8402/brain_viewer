@@ -170,7 +170,8 @@ The application uses Django ORM with SQLite for data storage. Models are defined
 
 ## License
 
-(./LICENSE)
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+
 
 ## Support
 
