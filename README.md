@@ -170,7 +170,7 @@ The application uses Django ORM with SQLite for data storage. Models are defined
 
 ## License
 
-[Add license information here]
+LICENSE
 
 ## Support
 
