@@ -7,3 +7,6 @@ app/backend/db.sqlite3
 app/backend/**/migrations
 app/backend/**/__pycache__
 .env
+*.jpg
+*.png
+*.jpeg

@@ -1,19 +1,96 @@
 import os
+import json
 import numpy as np
 from PIL import Image, ImageOps
 
 
-def crop_to_content(image_path, output_path=None, background_threshold=240, edge_detection=True):
+def update_json_with_crop_values(image_path, top, left,bid):
+    """
+    Update the 222_original_to_bfiw.json file by subtracting crop values from H_canvas_to_bfw.
+
+    Args:
+        image_path: Path to the image being cropped
+        top: Top crop value to subtract from H_canvas_to_bfw[1][2]
+        left: Left crop value to subtract from H_canvas_to_bfw[0][2]
+    """
+    # Extract image filename without extension
+    image_name = os.path.splitext(os.path.basename(image_path))[0]
+
+    # Convert bfi-XXX or nissl-XXX to XXX.jpg format for JSON lookup
+    # if image_name.startswith('bfi-') or image_name.startswith('nissl-'):
+    if image_name.startswith('bfi-') :
+        # Extract the numeric part
+        numeric_part = image_name.split('-')[1]
+        json_key = f"{numeric_part}.jpg"
+    else:
+        json_key = image_name
+
+    # Path to JSON file
+    json_path = f"/home/projects/bfi_viewer/app/backend/brainviewer/data/{bid}_original_to_bfiw.json"
+    
+    # Path to tracking file
+    tracking_file = "/home/projects/bfi_viewer/app/backend/brainviewer/data/.crop_tracking.txt"
+    
+    # Check if this image has already been processed
+    processed_images = set()
+    if os.path.exists(tracking_file):
+        with open(tracking_file, 'r') as f:
+            processed_images = set(line.strip() for line in f)
+    
+    if json_key in processed_images:
+        print(f"Skipping {image_name} (JSON key: {json_key}) - crop values already applied")
+        return
+
+    try:
+        # Load JSON data
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+
+        # Update if image exists in JSON
+        if json_key in data:
+            if "H_canvas_to_bfw" in data[json_key]:
+                # Get original values
+                orig_left_val = data[json_key]["H_canvas_to_bfw"][0][2]
+                orig_top_val = data[json_key]["H_canvas_to_bfw"][1][2]
+
+                # Subtract left from first array's last value
+                data[json_key]["H_canvas_to_bfw"][0][2] -= left
+                # Subtract top from second array's last value
+                data[json_key]["H_canvas_to_bfw"][1][2] -= top
+
+                print(f"Updated {image_name} (JSON key: {json_key}):")
+                print(
+                    f"  H_canvas_to_bfw[0][2]: {orig_left_val} - {left} = {data[json_key]['H_canvas_to_bfw'][0][2]}")
+                print(
+                    f"  H_canvas_to_bfw[1][2]: {orig_top_val} - {top} = {data[json_key]['H_canvas_to_bfw'][1][2]}")
+                
+                # Save updated JSON
+                with open(json_path, 'w') as f:
+                    json.dump(data, f, indent=4)
+                
+                # Add to tracking file after successful update
+                with open(tracking_file, 'a') as f:
+                    f.write(json_key + '\n')
+                    
+        else:
+            print(
+                f"Warning: {image_name} (JSON key: {json_key}) not found in JSON file")
+
+    except Exception as e:
+        print(f"Error updating JSON for {image_name}: {e}")
+
+
+def crop_to_content(image_path,bid , output_path=None, background_threshold=240, edge_detection=True):
     """
     Crop an image to its content by removing background areas.
     Uses edge detection and morphological operations for better results.
-    
+
     Args:
         image_path: Path to the input image
         output_path: Path to save the cropped image (optional)
         background_threshold: Threshold for background detection (0-255)
         edge_detection: Use edge detection for better boundary detection
-    
+
     Returns:
         Cropped image as PIL Image object
     """
@@ -25,7 +102,7 @@ def crop_to_content(image_path, output_path=None, background_threshold=240, edge
 
     width, height = img.size
     has_alpha = img.mode in ('RGBA', 'LA', 'PA')
-    
+
     # For large images, use downsampling to find bounds efficiently
     max_size = 800  # Reduced for better performance
     if max(width, height) > max_size:
@@ -33,7 +110,7 @@ def crop_to_content(image_path, output_path=None, background_threshold=240, edge
         scale_factor = max_size / max(width, height)
         new_width = int(width * scale_factor)
         new_height = int(height * scale_factor)
-        
+
         # Downsample for analysis
         small_img = img.resize((new_width, new_height), Image.LANCZOS)
     else:
@@ -53,41 +130,45 @@ def crop_to_content(image_path, output_path=None, background_threshold=240, edge
         elif small_img.mode == 'PA':
             p, a = small_img.split()
             alpha_array = np.array(a)
-        
+
         # For transparent images, content is where alpha > 0
         content_mask = alpha_array > 0
-        
+
         # Also check RGB values for semi-transparent pixels
         if small_img.mode == 'RGBA':
             rgb_array = np.array(small_img.convert('RGB'))
-            gray_array = np.dot(rgb_array[...,:3], [0.299, 0.587, 0.114])
-            
+            gray_array = np.dot(rgb_array[..., :3], [0.299, 0.587, 0.114])
+
             # For semi-transparent pixels, also check if they're not background color
             semi_transparent_mask = (alpha_array > 64) & (alpha_array < 255)
             color_content_mask = gray_array < background_threshold
-            content_mask = content_mask | (semi_transparent_mask & color_content_mask)
-        
-        print(f"Image has alpha channel. Content pixels: {np.sum(content_mask)}")
+            content_mask = content_mask | (
+                semi_transparent_mask & color_content_mask)
+
+        print(
+            f"Image has alpha channel. Content pixels: {np.sum(content_mask)}")
     else:
         # Handle images without alpha - detect black or white backgrounds
         gray = ImageOps.grayscale(small_img)
         gray_array = np.array(gray)
-        
+
         mean_val = np.mean(gray_array)
         min_val = np.min(gray_array)
         max_val = np.max(gray_array)
-        
+
         # Check if background is black or white
         black_pixels = np.sum(gray_array <= 10)  # Nearly black
         white_pixels = np.sum(gray_array >= 245)  # Nearly white
         total_pixels = gray_array.size
-        
+
         black_percentage = black_pixels / total_pixels
         white_percentage = white_pixels / total_pixels
-        
-        print(f"Gray stats - min: {min_val}, max: {max_val}, mean: {mean_val:.1f}")
-        print(f"Black pixels: {black_percentage:.1%}, White pixels: {white_percentage:.1%}")
-        
+
+        print(
+            f"Gray stats - min: {min_val}, max: {max_val}, mean: {mean_val:.1f}")
+        print(
+            f"Black pixels: {black_percentage:.1%}, White pixels: {white_percentage:.1%}")
+
         if black_percentage > 0.5:  # Mostly black background
             # Content is anything significantly brighter than black
             threshold = max(15, min_val + 10)  # At least 15, or min + 10
@@ -106,38 +187,42 @@ def crop_to_content(image_path, output_path=None, background_threshold=240, edge
             else:
                 adaptive_threshold = min(background_threshold, mean_val + 25)
                 content_mask = gray_array < adaptive_threshold
-            print(f"Mixed background. Using threshold < {adaptive_threshold:.1f}")
-    
+            print(
+                f"Mixed background. Using threshold < {adaptive_threshold:.1f}")
+
     # Remove small noise using morphological operations
     from scipy import ndimage
     # Remove small isolated pixels
-    content_mask = ndimage.binary_opening(content_mask, structure=np.ones((3,3)))
+    content_mask = ndimage.binary_opening(
+        content_mask, structure=np.ones((3, 3)))
     # Fill small holes
-    content_mask = ndimage.binary_closing(content_mask, structure=np.ones((5,5)))
-    
+    content_mask = ndimage.binary_closing(
+        content_mask, structure=np.ones((5, 5)))
+
     if not np.any(content_mask):
         print(f"Warning: No content found in {image_path}")
         return img
-    
+
     # Find content regions and get the largest connected component
     labeled_array, num_features = ndimage.label(content_mask)
     if num_features > 1:
         # Keep only the largest connected component
-        sizes = ndimage.sum(content_mask, labeled_array, range(num_features + 1))
+        sizes = ndimage.sum(content_mask, labeled_array,
+                            range(num_features + 1))
         largest_component = np.argmax(sizes[1:]) + 1  # Skip background (0)
         content_mask = labeled_array == largest_component
-    
+
     # Find bounding box
     content_coords = np.where(content_mask)
     if len(content_coords[0]) == 0:
         print(f"Warning: No content found after filtering in {image_path}")
         return img
-        
+
     top_small = int(np.min(content_coords[0]))
     bottom_small = int(np.max(content_coords[0]))
     left_small = int(np.min(content_coords[1]))
     right_small = int(np.max(content_coords[1]))
-    
+
     # Scale back to original image coordinates if needed
     if scale_factor != 1:
         top = int(top_small / scale_factor)
@@ -159,11 +244,15 @@ def crop_to_content(image_path, output_path=None, background_threshold=240, edge
 
     print(f"Image mode: {img.mode}, Has alpha: {has_alpha}")
     print(f"Crop bounds: ({left}, {top}) to ({right}, {bottom})")
-    print(f"Original size: {width}x{height}, Cropped size: {right-left}x{bottom-top}")
+    print(
+        f"Original size: {width}x{height}, Cropped size: {right-left}x{bottom-top}")
 
     # Crop the original image
     cropped = img.crop((left, top, right, bottom))
-    print( "top ",top, "bottom ", bottom, "left ", left, "right ", right)
+    print("top ", top, "bottom ", bottom, "left ", left, "right ", right)
+
+    # Update JSON file with crop values
+    update_json_with_crop_values(image_path, top, left, bid)
 
     # Save if output path provided
     if output_path:
@@ -174,10 +263,10 @@ def crop_to_content(image_path, output_path=None, background_threshold=240, edge
     return cropped
 
 
-def crop_images_in_directory(input_dir, output_dir=None, background_threshold=240):
+def crop_images_in_directory(input_dir,bid, output_dir=None, background_threshold=240):
     """
     Crop all images in a directory to their content.
-    
+
     Args:
         input_dir: Directory containing input images
         output_dir: Directory to save cropped images (optional)
@@ -199,7 +288,7 @@ def crop_images_in_directory(input_dir, output_dir=None, background_threshold=24
             output_path = os.path.join(output_dir, filename)
 
             try:
-                crop_to_content(input_path, output_path, background_threshold)
+                crop_to_content(input_path,bid, output_path, background_threshold)
                 print(f"Processed: {filename}")
             except Exception as e:
                 print(f"Error processing {filename}: {e}")
@@ -211,20 +300,27 @@ if __name__ == "__main__":
     image_data_dir = "/home/projects/bfi_viewer/app/backend/brainviewer/static/images_data"
 
     # Test with a single image first
-    test_image = os.path.join(image_data_dir, "222_uncrop", "bfi-892.png")
-    test_output = os.path.join(image_data_dir, "222_cropped", "bfi-892_cropped.png")
+    # test_image = os.path.join(image_data_dir, "222_uncrop", "bfi-919.png")
+    # test_output = os.path.join(image_data_dir, "222_cropped", "bfi-919.png")
 
-    print("Testing with a single image...")
-    try:
-        cropped = crop_to_content(test_image, test_output)
-        print(
-            f"Successfully cropped test image. Original size: {Image.open(test_image).size}, Cropped size: {cropped.size}")
-    except Exception as e:
-        print(f"Error: {e}")
+    # print("Testing with a single image...")
+    # try:
+    #     cropped = crop_to_content(test_image, test_output)
+    #     print(
+    #         f"Successfully cropped test image. Original size: {Image.open(test_image).size}, Cropped size: {cropped.size}")
+    # except Exception as e:
+    #     print(f"Error: {e}")
 
     # Process entire directory - NOW ENABLED
-    # input_dir = os.path.join(image_data_dir, "142_BFI_clean_trans")
-    # output_dir = os.path.join(image_data_dir, "cropped")
-    # crop_images_in_directory(input_dir, output_dir)
+    directory_name = input("Enter the directory name to process (e.g., 222_uncrop): ").strip()
+    bid = input("Enter the bid (e.g., 222): ").strip()
+    # if not directory_name:
+    #     directory_name = "222_uncrop"
+    input_dir = os.path.join(image_data_dir, directory_name)
+    output_dir = os.path.join(image_data_dir, directory_name + "cropped")
+    print(f"Processing images from: {input_dir}")
+    print(f"Saving cropped images to: {output_dir}")
+    print("Updating JSON file with crop values...")
+    crop_images_in_directory(input_dir,bid, output_dir)
 
     print("Image cropping completed for all images!")

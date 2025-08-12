@@ -26,10 +26,13 @@ def fetch_brain_viewer_details(biosample_id):
     url = f"http://dev2adi.humanbrain.in:8000/GW/getBrainViewerDetails/IIT/V1/SS-{bfi_value}:-1:-1"
     logger.info(f"Sending request to: {url}")
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)  # Add 5 second timeout
         response.raise_for_status()  # Raise an error if the response code isn't 200
         logger.info(f"Successfully fetched data from {url}")
         return response.json()  # Or response.text based on the expected data format
+    except requests.exceptions.Timeout:
+        logger.error(f"Request timeout while fetching data from {url}")
+        return None
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching data from {url}: {e}")
         return None
@@ -736,8 +739,8 @@ def viewer_view_split(request, biosample_id, slice_number_str, port_no=8000):
             "jp2_full_size": json.dumps([jp2_meta["width"], jp2_meta["height"]]),
             "jp2_initial_view_rotation_deg": json.dumps(jp2_meta["rotation"]),
             "bfi_image_url": json.dumps(bfi_image_url),
-            # "bfi_css_rotation_deg": json.dumps(jp2_meta["rotation"]),
-            "bfi_css_rotation_deg": json.dumps(bfi_rotation),
+            "bfi_css_rotation_deg": json.dumps(jp2_meta["rotation"]),
+            # "bfi_css_rotation_deg": json.dumps(bfi_rotation),
             "h_jp2_to_bfi": json.dumps(h_jp2_to_bfi),
             "bfi_natural_width": json.dumps(bfi_w),
             "bfi_natural_height": json.dumps(bfi_h),
@@ -952,8 +955,8 @@ def viewer_view_split_test(request, biosample_id, slice_number_str, port_no=8000
             "jp2_full_size": json.dumps([jp2_meta["width"], jp2_meta["height"]]),
             "jp2_initial_view_rotation_deg": json.dumps(jp2_meta["rotation"]),
             "bfi_image_url": json.dumps(bfi_image_url),
-            "bfi_css_rotation_deg": json.dumps(jp2_meta["rotation"]),
-            # "bfi_css_rotation_deg": json.dumps(bfi_rotation),
+            # "bfi_css_rotation_deg": json.dumps(jp2_meta["rotation"]),
+            "bfi_css_rotation_deg": json.dumps(bfi_rotation),
             "h_jp2_to_bfi": json.dumps(h_jp2_to_bfi),
             "bfi_natural_width": json.dumps(bfi_w),
             "bfi_natural_height": json.dumps(bfi_h),
