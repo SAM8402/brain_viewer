@@ -1183,21 +1183,38 @@
                       return;
                   }
 
-                  // Calculate viewport extent based on current view center, resolution, and map size
-                  const center = view.getCenter();
-                  const resolution = view.getResolution();
-                  const mapSize = olMap.getSize();
+                  // Calculate viewport extent - try using calculateExtent if available
+                  let jp2ExtentOL_raw;
                   
-                  // Calculate half dimensions of the visible area in map units
-                  const halfWidth = (mapSize[0] * resolution) / 2;
-                  const halfHeight = (mapSize[1] * resolution) / 2;
+                  if (view.calculateExtent) {
+                      // Use the built-in method to get the visible extent
+                      jp2ExtentOL_raw = view.calculateExtent(olMap.getSize());
+                  } else {
+                      // Fallback to manual calculation
+                      const center = view.getCenter();
+                      const resolution = view.getResolution();
+                      const mapSize = olMap.getSize();
+                      
+                      // Calculate half dimensions of the visible area in map units
+                      const halfWidth = (mapSize[0] * resolution) / 2;
+                      const halfHeight = (mapSize[1] * resolution) / 2;
+                      
+                      // Create viewport extent (this properly reflects zoom level)
+                      jp2ExtentOL_raw = [
+                          center[0] - halfWidth,  // left
+                          center[1] - halfHeight, // bottom  
+                          center[0] + halfWidth,  // right
+                          center[1] + halfHeight  // top
+                      ];
+                  }
                   
-                  // Create viewport extent (this properly reflects zoom level)
+                  // Constrain viewport extent to image bounds
+                  const imageExtentBounds = view.getProjection().getExtent();
                   const jp2ExtentOL = [
-                      center[0] - halfWidth,  // left
-                      center[1] - halfHeight, // bottom  
-                      center[0] + halfWidth,  // right
-                      center[1] + halfHeight  // top
+                      Math.max(imageExtentBounds[0], jp2ExtentOL_raw[0]), // left
+                      Math.max(imageExtentBounds[1], jp2ExtentOL_raw[1]), // bottom
+                      Math.min(imageExtentBounds[2], jp2ExtentOL_raw[2]), // right
+                      Math.min(imageExtentBounds[3], jp2ExtentOL_raw[3])  // top
                   ];
                   
                   // Get the full image extent for comparison
@@ -1207,29 +1224,48 @@
                   const viewportWidth = jp2ExtentOL[2] - jp2ExtentOL[0];
                   const viewportHeight = jp2ExtentOL[3] - jp2ExtentOL[1];
                   
+                  // Additional debugging to verify zoom behavior
+                  const center = view.getCenter();
+                  const resolution = view.getResolution();
+                  const mapSize = olMap.getSize();
+                  const minZoom = view.getMinZoom();
+                  const maxZoom = view.getMaxZoom();
+                  const zoomPercentage = ((view.getZoom() - minZoom) / (maxZoom - minZoom) * 100).toFixed(1);
+                  
                   console.log('DEBUG - Red box extent calculation:', {
                       zoom: view.getZoom(),
+                      zoomRange: `${minZoom} to ${maxZoom}`,
+                      zoomPercentage: zoomPercentage + '%',
                       resolution: resolution,
                       center: center,
                       mapSize: mapSize,
-                      halfWidth: halfWidth,
-                      halfHeight: halfHeight,
+                      calculateExtentAvailable: !!view.calculateExtent,
                       extentSize: [viewportWidth, viewportHeight],
-                      jp2ExtentOL: jp2ExtentOL,
+                      jp2ExtentOL_raw: jp2ExtentOL_raw,
+                      jp2ExtentOL_constrained: jp2ExtentOL,
                       currentImageType: typeof currentJP2ImageType !== 'undefined' ? currentJP2ImageType : 'unknown',
                       imageExtent: imageExtent,
                       imageDimensions: [imageWidth, imageHeight],
                       viewportAsPercentOfImage: [
                           (viewportWidth / imageWidth * 100).toFixed(2) + '%',
                           (viewportHeight / imageHeight * 100).toFixed(2) + '%'
-                      ]
+                      ],
+                      wasConstrained: {
+                          left: jp2ExtentOL_raw[0] !== jp2ExtentOL[0],
+                          bottom: jp2ExtentOL_raw[1] !== jp2ExtentOL[1],
+                          right: jp2ExtentOL_raw[2] !== jp2ExtentOL[2],
+                          top: jp2ExtentOL_raw[3] !== jp2ExtentOL[3]
+                      },
+                      expectedBehavior: view.getZoom() > minZoom + 1 ? 'Red box should be SMALL' : 'Red box should be LARGE'
                   });
                   
+                  // Convert OL coordinates to image coordinates
+                  // OL uses bottom-left origin, image uses top-left origin
                   const jp2_corners_img = [
-                      [jp2ExtentOL[0], -jp2ExtentOL[3]], // tl
-                      [jp2ExtentOL[2], -jp2ExtentOL[3]], // tr
-                      [jp2ExtentOL[2], -jp2ExtentOL[1]], // br
-                      [jp2ExtentOL[0], -jp2ExtentOL[1]], // bl
+                      [jp2ExtentOL[0], imageExtent[3] - jp2ExtentOL[3]], // tl
+                      [jp2ExtentOL[2], imageExtent[3] - jp2ExtentOL[3]], // tr
+                      [jp2ExtentOL[2], imageExtent[3] - jp2ExtentOL[1]], // br
+                      [jp2ExtentOL[0], imageExtent[3] - jp2ExtentOL[1]], // bl
                   ];
 
                   const bfi_nat_corners_raw = jp2_corners_img.map(p_jp2 => applyHomography(p_jp2, H_jp2_to_bfi)).filter(p => p !== null);
@@ -1241,16 +1277,26 @@
                       Math.max(padding, Math.min(bfiNaturalHeight - padding, corner[1]))
                   ]);
                   
+                  // Calculate the bounds of the transformed corners
+                  const bfi_bounds = bfi_nat_corners_raw.length >= 4 ? {
+                      minX: Math.min(...bfi_nat_corners_raw.map(p => p[0])),
+                      maxX: Math.max(...bfi_nat_corners_raw.map(p => p[0])),
+                      minY: Math.min(...bfi_nat_corners_raw.map(p => p[1])),
+                      maxY: Math.max(...bfi_nat_corners_raw.map(p => p[1]))
+                  } : null;
+                  
                   console.log('DEBUG - After homography transformation:', {
                       jp2_corners_img: jp2_corners_img,
                       bfi_nat_corners_raw: bfi_nat_corners_raw,
                       bfi_nat_corners_constrained: bfi_nat_corners,
                       bfiNaturalWidth: bfiNaturalWidth,
                       bfiNaturalHeight: bfiNaturalHeight,
+                      bfi_bounds: bfi_bounds,
                       rectSizePercent: bfi_nat_corners.length >= 4 ? {
                           widthPercent: ((Math.max(...bfi_nat_corners.map(p => p[0])) - Math.min(...bfi_nat_corners.map(p => p[0]))) / bfiNaturalWidth * 100).toFixed(2),
                           heightPercent: ((Math.max(...bfi_nat_corners.map(p => p[1])) - Math.min(...bfi_nat_corners.map(p => p[1]))) / bfiNaturalHeight * 100).toFixed(2)
-                      } : null
+                      } : null,
+                      H_jp2_to_bfi: H_jp2_to_bfi ? 'defined' : 'undefined'
                   });
 
                   if (bfi_nat_corners.length < 4) {
