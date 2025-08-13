@@ -2669,14 +2669,43 @@
                     if (!bfiOverlayLayer) {
                         console.log('Creating BFI overlay layer with URL:', bfiImageUrl);
                         
-                        // Use the JP2 map's extent directly for simpler overlay
-                        const jp2Extent = view.getProjection().getExtent();
-                        console.log('JP2 extent:', jp2Extent);
+                        // Calculate proper BFI extent in JP2 coordinate system using homography
+                        const bfiCorners_nat = [
+                            [0, 0],                                    // top-left
+                            [bfiNaturalWidth, 0],                     // top-right
+                            [bfiNaturalWidth, bfiNaturalHeight],      // bottom-right
+                            [0, bfiNaturalHeight]                     // bottom-left
+                        ];
+                        
+                        // Transform BFI corners to JP2 coordinate system
+                        const jp2Corners_img = bfiCorners_nat.map(corner => 
+                            applyHomography(corner, H_bfi_to_jp2)
+                        ).filter(p => p !== null);
+                        
+                        if (jp2Corners_img.length < 4) {
+                            console.error('Failed to transform BFI corners to JP2 coordinate system');
+                            return;
+                        }
+                        
+                        // Convert to JP2 OpenLayers coordinate system (y-up)
+                        const jp2Corners_ol = jp2Corners_img.map(corner => [corner[0], -corner[1]]);
+                        
+                        // Calculate extent from transformed corners
+                        const xs = jp2Corners_ol.map(corner => corner[0]);
+                        const ys = jp2Corners_ol.map(corner => corner[1]);
+                        const bfiExtentInJP2 = [
+                            Math.min(...xs),  // minX
+                            Math.min(...ys),  // minY
+                            Math.max(...xs),  // maxX
+                            Math.max(...ys)   // maxY
+                        ];
+                        
+                        console.log('BFI extent in JP2 coordinate system:', bfiExtentInJP2);
                         
                         bfiOverlayLayer = new ol.layer.Image({
                             source: new ol.source.ImageStatic({
                                 url: bfiImageUrl,
-                                imageExtent: jp2Extent,
+                                imageExtent: bfiExtentInJP2,
                                 projection: view.getProjection()
                             }),
                             opacity: 0.5,
