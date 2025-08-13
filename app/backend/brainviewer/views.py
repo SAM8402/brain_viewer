@@ -377,6 +377,7 @@ def get_transformation_data(biosample_id, section_number_str):
                 transform_details = {
                     "H_jp2_to_bfi": h_matrix,
                     "bfi_natural_dims": bfi_dims,
+                    "bfi_rotation": section_data.get("interpolated_bfw_css_rotation_deg", 0),
                 }
                 logger.info(
                     f"Processed transformation data for {section_key}: {transform_details}")
@@ -673,7 +674,10 @@ def viewer_view_split(request, biosample_id, slice_number_str, port_no=8000):
 
         h_jp2_to_bfi = transform_data.get("H_jp2_to_bfi")
         bfi_natural_dims = transform_data.get("bfi_natural_dims")
-        bfi_rotation = transform_data.get("bfi_rotation", 0)
+        bfi_rotation_raw = transform_data.get("bfi_rotation", 0)
+        
+        # Ensure bfi_rotation matches jp2_meta["rotation"] format and type
+        bfi_rotation = float(bfi_rotation_raw) if bfi_rotation_raw is not None else 0.0
 
         if not h_jp2_to_bfi:
             logger.error(
@@ -739,8 +743,8 @@ def viewer_view_split(request, biosample_id, slice_number_str, port_no=8000):
             "jp2_full_size": json.dumps([jp2_meta["width"], jp2_meta["height"]]),
             "jp2_initial_view_rotation_deg": json.dumps(jp2_meta["rotation"]),
             "bfi_image_url": json.dumps(bfi_image_url),
-            "bfi_css_rotation_deg": json.dumps(jp2_meta["rotation"]),
-            # "bfi_css_rotation_deg": json.dumps(bfi_rotation),
+            # "bfi_css_rotation_deg": json.dumps(jp2_meta["rotation"]),
+            "bfi_css_rotation_deg": json.dumps(bfi_rotation),
             "h_jp2_to_bfi": json.dumps(h_jp2_to_bfi),
             "bfi_natural_width": json.dumps(bfi_w),
             "bfi_natural_height": json.dumps(bfi_h),
@@ -889,7 +893,10 @@ def viewer_view_split_test(request, biosample_id, slice_number_str, port_no=8000
 
         h_jp2_to_bfi = transform_data.get("H_jp2_to_bfi")
         bfi_natural_dims = transform_data.get("bfi_natural_dims")
-        bfi_rotation = transform_data.get("bfi_rotation", 0)
+        bfi_rotation_raw = transform_data.get("bfi_rotation", 0)
+        
+        # Ensure bfi_rotation matches jp2_meta["rotation"] format and type
+        bfi_rotation = float(bfi_rotation_raw) if bfi_rotation_raw is not None else 0.0
 
         if not h_jp2_to_bfi:
             logger.error(
@@ -948,8 +955,12 @@ def viewer_view_split_test(request, biosample_id, slice_number_str, port_no=8000
             bfi_natural_dims) > 1 else 0
         print("BFI image url:", json.dumps(bfi_image_url))
         
+        # Debug rotation values
+        print(f"DEBUG: jp2_meta['rotation'] = {jp2_meta['rotation']} (type: {type(jp2_meta['rotation'])})")
+        print(f"DEBUG: bfi_rotation = {bfi_rotation} (type: {type(bfi_rotation)})")
+        print(f"DEBUG: jp2_meta['rotation'] == bfi_rotation: {jp2_meta['rotation'] == bfi_rotation}")
+        print(f"DEBUG: transform_data = {transform_data}")
 
-        
         template_data = {
             "jp2_map_url": json.dumps(full_jp2_url),
             "jp2_full_size": json.dumps([jp2_meta["width"], jp2_meta["height"]]),
