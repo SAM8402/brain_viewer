@@ -29,20 +29,51 @@
           position: relative;
       }
       
-      /* Smooth transitions for OpenLayers maps */
-      .ol-viewport {
-          transition: transform 0.02s linear !important;
+      /* Ultra smooth 240Hz performance optimizations */
+      * {
+          -webkit-backface-visibility: hidden;
+          -moz-backface-visibility: hidden;
+          backface-visibility: hidden;
+          -webkit-transform: translate3d(0, 0, 0);
+          -moz-transform: translate3d(0, 0, 0);
+          transform: translate3d(0, 0, 0);
       }
       
-      /* Disable transitions during dragging for immediate response */
-      .ol-viewport.ol-dragging {
+      /* Smooth transitions for OpenLayers maps - 240Hz optimized */
+      .ol-viewport {
+          will-change: transform;
+          transform: translateZ(0);
+          -webkit-transform: translateZ(0);
+      }
+      
+      /* Disable transitions during interactions for immediate response */
+      .ol-viewport.ol-dragging,
+      .ol-viewport.ol-touch-dragging,
+      .ol-viewport.ol-animating {
           transition: none !important;
       }
       
-      /* Improve rendering performance */
+      /* Ultra high performance rendering */
       .ol-layer {
           image-rendering: optimizeSpeed;
           image-rendering: -webkit-optimize-contrast;
+          image-rendering: crisp-edges;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          will-change: transform, opacity;
+      }
+      
+      /* GPU acceleration for canvas elements */
+      canvas {
+          transform: translateZ(0);
+          -webkit-transform: translateZ(0);
+          will-change: transform;
+      }
+      
+      /* Optimize vector layers for 240Hz */
+      .ol-layer canvas {
+          -webkit-transform: translate3d(0, 0, 0);
+          transform: translate3d(0, 0, 0);
       }
 
       /* BFI Thumbnail Styling (when JP2 is fullscreen) */
@@ -1152,7 +1183,48 @@
                       return;
                   }
 
-                  const jp2ExtentOL = view.calculateExtent(olMap.getSize());
+                  // Calculate viewport extent based on current view center, resolution, and map size
+                  const center = view.getCenter();
+                  const resolution = view.getResolution();
+                  const mapSize = olMap.getSize();
+                  
+                  // Calculate half dimensions of the visible area in map units
+                  const halfWidth = (mapSize[0] * resolution) / 2;
+                  const halfHeight = (mapSize[1] * resolution) / 2;
+                  
+                  // Create viewport extent (this properly reflects zoom level)
+                  const jp2ExtentOL = [
+                      center[0] - halfWidth,  // left
+                      center[1] - halfHeight, // bottom  
+                      center[0] + halfWidth,  // right
+                      center[1] + halfHeight  // top
+                  ];
+                  
+                  // Get the full image extent for comparison
+                  const imageExtent = view.getProjection().getExtent();
+                  const imageWidth = imageExtent[2] - imageExtent[0];
+                  const imageHeight = imageExtent[3] - imageExtent[1];
+                  const viewportWidth = jp2ExtentOL[2] - jp2ExtentOL[0];
+                  const viewportHeight = jp2ExtentOL[3] - jp2ExtentOL[1];
+                  
+                  console.log('DEBUG - Red box extent calculation:', {
+                      zoom: view.getZoom(),
+                      resolution: resolution,
+                      center: center,
+                      mapSize: mapSize,
+                      halfWidth: halfWidth,
+                      halfHeight: halfHeight,
+                      extentSize: [viewportWidth, viewportHeight],
+                      jp2ExtentOL: jp2ExtentOL,
+                      currentImageType: typeof currentJP2ImageType !== 'undefined' ? currentJP2ImageType : 'unknown',
+                      imageExtent: imageExtent,
+                      imageDimensions: [imageWidth, imageHeight],
+                      viewportAsPercentOfImage: [
+                          (viewportWidth / imageWidth * 100).toFixed(2) + '%',
+                          (viewportHeight / imageHeight * 100).toFixed(2) + '%'
+                      ]
+                  });
+                  
                   const jp2_corners_img = [
                       [jp2ExtentOL[0], -jp2ExtentOL[3]], // tl
                       [jp2ExtentOL[2], -jp2ExtentOL[3]], // tr
@@ -1160,7 +1232,26 @@
                       [jp2ExtentOL[0], -jp2ExtentOL[1]], // bl
                   ];
 
-                  const bfi_nat_corners = jp2_corners_img.map(p_jp2 => applyHomography(p_jp2, H_jp2_to_bfi)).filter(p => p !== null);
+                  const bfi_nat_corners_raw = jp2_corners_img.map(p_jp2 => applyHomography(p_jp2, H_jp2_to_bfi)).filter(p => p !== null);
+                  
+                  // Constrain corners to stay within image bounds (with small padding to avoid edge issues)
+                  const padding = 10; // pixels
+                  const bfi_nat_corners = bfi_nat_corners_raw.map(corner => [
+                      Math.max(padding, Math.min(bfiNaturalWidth - padding, corner[0])),
+                      Math.max(padding, Math.min(bfiNaturalHeight - padding, corner[1]))
+                  ]);
+                  
+                  console.log('DEBUG - After homography transformation:', {
+                      jp2_corners_img: jp2_corners_img,
+                      bfi_nat_corners_raw: bfi_nat_corners_raw,
+                      bfi_nat_corners_constrained: bfi_nat_corners,
+                      bfiNaturalWidth: bfiNaturalWidth,
+                      bfiNaturalHeight: bfiNaturalHeight,
+                      rectSizePercent: bfi_nat_corners.length >= 4 ? {
+                          widthPercent: ((Math.max(...bfi_nat_corners.map(p => p[0])) - Math.min(...bfi_nat_corners.map(p => p[0]))) / bfiNaturalWidth * 100).toFixed(2),
+                          heightPercent: ((Math.max(...bfi_nat_corners.map(p => p[1])) - Math.min(...bfi_nat_corners.map(p => p[1]))) / bfiNaturalHeight * 100).toFixed(2)
+                      } : null
+                  });
 
                   if (bfi_nat_corners.length < 4) {
                       bfiViewRectLayer.getSource().clear();
@@ -1323,8 +1414,20 @@
               }
 
               function initializeJP2Map() {
-                  const zoomifySource = new ol.source.Zoomify({ url: jp2MapUrl, size: jp2FullSize, crossOrigin: "anonymous", tierSizeCalculation: 'truncated', imageSmoothing: false, tileSize: 2048 });
-                  const tileLayer = new ol.layer.Tile({ source: zoomifySource });
+                  const zoomifySource = new ol.source.Zoomify({ 
+                      url: jp2MapUrl, 
+                      size: jp2FullSize, 
+                      crossOrigin: "anonymous", 
+                      tierSizeCalculation: 'truncated', 
+                      imageSmoothing: false, 
+                      tileSize: 2048,
+                      transition: 0 // No transition delay for instant tile loading
+                  });
+                  const tileLayer = new ol.layer.Tile({ 
+                      source: zoomifySource,
+                      preload: Infinity, // Preload all visible tiles for smoothness
+                      useInterimTilesOnError: false // Prevent flickering
+                  });
                   const imageExtent = zoomifySource.getTileGrid().getExtent();
                   const pixelProjection = new ol.proj.Projection({ code: 'pixel-coords', units: 'pixels', extent: imageExtent });
 
@@ -1337,6 +1440,8 @@
                       rotation: (jp2InitialViewRotationDeg * Math.PI / 180),
                       constrainOnlyCenter: true,
                       smoothExtentConstraint: false,
+                      enableRotation: true,
+                      constrainResolution: false, // Smooth zooming without steps
                       maxZoom: desiredViewMaxZoom,
                       minZoom: 0
                   });
@@ -1371,7 +1476,20 @@
                       controls: ol.control.defaults({ attribution: false, rotate: false, zoom: false })
                                .extend([new ol.control.ZoomSlider()]),
                       loadTilesWhileAnimating: true,
-                      loadTilesWhileInteracting: true
+                      loadTilesWhileInteracting: true,
+                      moveTolerance: 1, // Immediate response to mouse movement
+                      pixelRatio: window.devicePixelRatio || 1, // Use device pixel ratio for sharpness
+                      interactions: ol.interaction.defaults({
+                          doubleClickZoom: true,
+                          dragPan: true,
+                          mouseWheelZoom: true,
+                          shiftDragZoom: true,
+                          keyboard: true,
+                          zoomDuration: 0, // Instant zoom for 240Hz feel
+                          dragPanOptions: {
+                              kinetic: new ol.Kinetic(-0.01, 0.1, 100) // Smoother kinetic scrolling
+                          }
+                      })
                   });
 
                   try {
@@ -1448,26 +1566,64 @@
                       // Send null coordinates when mouse leaves JP2 map
                       sendCoordinatesToParent(null, null, null, null, 'live_tracking');
                   });
-                  //olMap.on('moveend', updateBFIViewRectangle);
+                  
+                  // Ultra smooth red box updates - 240Hz-like smoothness
+                  let redBoxUpdateScheduled = false;
+                  let lastRedBoxUpdateTime = 0;
+                  const targetFPS = 240;
+                  const frameInterval = 1000 / targetFPS; // ~4.17ms per frame
+                  
+                  function scheduleRedBoxUpdate() {
+                      if (redBoxUpdateScheduled) return;
+                      redBoxUpdateScheduled = true;
+                      
+                      requestAnimationFrame((currentTime) => {
+                          if (currentTime - lastRedBoxUpdateTime >= frameInterval) {
+                              updateBFIViewRectangle();
+                              lastRedBoxUpdateTime = currentTime;
+                          }
+                          redBoxUpdateScheduled = false;
+                      });
+                  }
+                  
                   // Add real-time drag sync during pointer drag
                   olMap.on('pointerdrag', function() {
                       isDragging = true;
+                      scheduleRedBoxUpdate(); // Ultra smooth red box update
                       if (syncEnabled && !isUpdatingFromSync && bfiOlMap && bfiView && (isSplitView || jp2IsFullscreen)) {
                           queueSync(syncBFIToBJP2);
+                      }
+                  });
+                  
+                  // Update during any movement for ultra smooth tracking
+                  olMap.on('pointermove', function() {
+                      if (olMap.getView().getAnimating() || olMap.getView().getInteracting()) {
+                          scheduleRedBoxUpdate();
                       }
                   });
                   
                   // Add movestart for smoother drag initialization
                   olMap.on('movestart', function() {
                       isDragging = true;
+                      scheduleRedBoxUpdate(); // Start updating immediately
                       if (syncEnabled && !isUpdatingFromSync && bfiOlMap && bfiView && (isSplitView || jp2IsFullscreen)) {
                           queueSync(syncBFIToBJP2);
                       }
                   });
                   
+                  // Update on resolution changes (zooming)
+                  view.on('change:resolution', function() {
+                      scheduleRedBoxUpdate();
+                  });
+                  
+                  // Update on center changes (panning)
+                  view.on('change:center', function() {
+                      scheduleRedBoxUpdate();
+                  });
+                  
                   olMap.on('moveend', function() {
                       isDragging = false; // Reset dragging state
-                      updateBFIViewRectangle();
+                      updateBFIViewRectangle(); // Final update to ensure accuracy
                       if (syncEnabled && !isUpdatingFromSync && bfiOlMap && bfiView && (isSplitView || jp2IsFullscreen)) {
                           queueSync(syncBFIToBJP2);
                       }
@@ -1743,12 +1899,27 @@
             let syncAnimationFrame = null;
             let lastSyncTime = 0;
             let isDragging = false;
-            const SYNC_THROTTLE_MS = 4; // ~240fps throttling for ultra-smooth drag
-            const DRAG_SYNC_THROTTLE_MS = 2; // Even faster during drag operations
+            const SYNC_THROTTLE_MS = 4.16; // Exactly 240fps throttling
+            const DRAG_SYNC_THROTTLE_MS = 4.16; // Consistent 240Hz during all operations
+            
+            // Performance monitoring for 240Hz optimization
+            let frameCount = 0;
+            let lastFPSUpdate = performance.now();
+            let currentFPS = 0;
             
             function executeSyncQueue() {
                 const now = performance.now();
-                const throttleMs = isDragging ? DRAG_SYNC_THROTTLE_MS : SYNC_THROTTLE_MS;
+                const throttleMs = SYNC_THROTTLE_MS; // Always use 240Hz for consistency
+                
+                // FPS monitoring
+                frameCount++;
+                if (now - lastFPSUpdate >= 1000) {
+                    currentFPS = frameCount;
+                    frameCount = 0;
+                    lastFPSUpdate = now;
+                    // console.log('Sync FPS:', currentFPS); // Uncomment to monitor performance
+                }
+                
                 if (syncQueue.length === 0 || (now - lastSyncTime) < throttleMs) {
                     if (syncQueue.length > 0) {
                         syncAnimationFrame = requestAnimationFrame(executeSyncQueue);
@@ -2173,7 +2344,9 @@
                   zoom: 0, // Start at a low zoom to see the whole image
                   maxZoom: 10, // Adjust as needed
                   minZoom: 0, // Allow zooming out to see the whole image
-                  rotation: (bfiCssRotationDeg * Math.PI / 180) // Apply the BFI image's rotation
+                  rotation: (bfiCssRotationDeg * Math.PI / 180), // Apply the BFI image's rotation
+                  enableRotation: true,
+                  constrainResolution: false // Smooth zooming without steps
               });
 
               bfiOlMap = new ol.Map({
@@ -2183,7 +2356,20 @@
                   controls: ol.control.defaults({ attribution: false, rotate: false, zoom: false })
                                   .extend([new ol.control.ZoomSlider()]),
                   loadTilesWhileAnimating: true,
-                  loadTilesWhileInteracting: true
+                  loadTilesWhileInteracting: true,
+                  moveTolerance: 1, // Immediate response to mouse movement
+                  pixelRatio: window.devicePixelRatio || 1, // Use device pixel ratio for sharpness
+                  interactions: ol.interaction.defaults({
+                      doubleClickZoom: true,
+                      dragPan: true,
+                      mouseWheelZoom: true,
+                      shiftDragZoom: true,
+                      keyboard: true,
+                      zoomDuration: 0, // Instant zoom for 240Hz feel
+                      dragPanOptions: {
+                          kinetic: new ol.Kinetic(-0.01, 0.1, 100) // Smoother kinetic scrolling
+                      }
+                  })
               });
 
               try {
