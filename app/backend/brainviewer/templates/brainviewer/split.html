@@ -370,6 +370,120 @@
             border-color: #3B82F6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
+
+        /* Loading Animation Styles */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.3s ease-out;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            position: relative;
+            width: 60px;
+            height: 60px;
+        }
+        
+        .loading-spinner::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #8B5CF6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading-spinner::after {
+            content: '';
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            top: 10%;
+            left: 10%;
+            border: 2px solid transparent;
+            border-top: 2px solid #06B6D4;
+            border-radius: 50%;
+            animation: spin 1.5s linear infinite reverse;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        /* Specific loading states for different image types */
+        .jp2-loading-overlay {
+            background: rgba(240, 240, 240, 0.95);
+        }
+        
+        .bfi-loading-overlay {
+            background: rgba(248, 250, 252, 0.95);
+            border-radius: 8px;
+        }
+        
+        /* Tile loading indicator */
+        .tile-loading-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(139, 92, 246, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            pointer-events: none;
+        }
+        
+        .tile-loading-indicator.active {
+            opacity: 1;
+        }
+        
+        .tile-loading-indicator::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 8px;
+            border: 2px solid transparent;
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
         .header{
             margin: 0;
             padding: 8px 15px;
@@ -827,7 +941,15 @@
     
 
     <div class="main-container">
-      <div id="jp2_map"></div>
+      <div id="jp2_map">
+        <div id="jp2_loading_overlay" class="loading-overlay jp2-loading-overlay">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Loading JP2 Image...</div>
+        </div>
+        <div id="jp2_tile_indicator" class="tile-loading-indicator">
+          Loading tiles...
+        </div>
+      </div>
       <div id="mouse_coordinates" class="coordinates" style="display: none">JP2 Mouse: N/A</div>
       <div id="bfi_target_coordinates" class="coordinates" style="bottom: 30px;display: none">
         BFI Target: N/A
@@ -838,10 +960,18 @@
 
       <div class="bfi-thumbnail-container" id="bfi_thumb_wrap">
         <div class="bfi-image-viewport" id="bfi_image_viewport_el">
+          <div id="bfi_loading_overlay" class="loading-overlay bfi-loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading BFI Image...</div>
+          </div>
           <div
             id="bfi_ol_map"
             style="width: 100%; height: 100%; display: none"
-          ></div>
+          >
+            <div id="bfi_tile_indicator" class="tile-loading-indicator">
+              Loading tiles...
+            </div>
+          </div>
           <img
             id="bfi_thumbnail_img"
             src=""
@@ -1461,6 +1591,11 @@
               }
 
               function initializeJP2Map() {
+                  // Show loading overlay
+                  const jp2LoadingOverlay = document.getElementById('jp2_loading_overlay');
+                  const jp2TileIndicator = document.getElementById('jp2_tile_indicator');
+                  if (jp2LoadingOverlay) jp2LoadingOverlay.classList.remove('hidden');
+
                   const zoomifySource = new ol.source.Zoomify({ 
                       url: jp2MapUrl, 
                       size: jp2FullSize, 
@@ -1537,6 +1672,31 @@
                               kinetic: new ol.Kinetic(-0.01, 0.1, 100) // Smoother kinetic scrolling
                           }
                       })
+                  });
+
+                  // Add loading event handlers for JP2 image
+                  tileLayer.getSource().on('tileloadstart', function() {
+                      if (jp2TileIndicator) {
+                          jp2TileIndicator.classList.add('active');
+                      }
+                  });
+                  
+                  tileLayer.getSource().on('tileloadend', function() {
+                      if (jp2TileIndicator) {
+                          jp2TileIndicator.classList.remove('active');
+                      }
+                      // Hide main loading overlay after first tiles load
+                      if (jp2LoadingOverlay) {
+                          setTimeout(() => {
+                              jp2LoadingOverlay.classList.add('hidden');
+                          }, 100);
+                      }
+                  });
+                  
+                  tileLayer.getSource().on('tileloaderror', function() {
+                      if (jp2TileIndicator) {
+                          jp2TileIndicator.classList.remove('active');
+                      }
                   });
 
                   try {
@@ -1812,6 +1972,15 @@
                 // Function to update JP2 image source
             function updateJP2Image(imageType) {
                 if (!olMap || !view) return;
+                
+                // Show loading overlay when switching image types
+                const jp2LoadingOverlay = document.getElementById('jp2_loading_overlay');
+                const jp2TileIndicator = document.getElementById('jp2_tile_indicator');
+                if (jp2LoadingOverlay) {
+                    jp2LoadingOverlay.classList.remove('hidden');
+                    jp2LoadingOverlay.querySelector('.loading-text').textContent = 
+                        imageType === 'nissl' ? 'Loading Nissl Image...' : 'Loading Original Image...';
+                }
 
                 let newUrl, newSize, newRotation;
                 if (imageType === 'nissl') {
@@ -1846,6 +2015,31 @@
                 const tileLayer = olMap.getLayers().getArray()[0]; // Assuming first layer is the tile layer
                 tileLayer.setSource(newZoomifySource);
 
+                // Add loading event handlers for the new source
+                newZoomifySource.on('tileloadstart', function() {
+                    if (jp2TileIndicator) {
+                        jp2TileIndicator.classList.add('active');
+                    }
+                });
+                
+                newZoomifySource.on('tileloadend', function() {
+                    if (jp2TileIndicator) {
+                        jp2TileIndicator.classList.remove('active');
+                    }
+                    // Hide main loading overlay after first tiles load
+                    if (jp2LoadingOverlay) {
+                        setTimeout(() => {
+                            jp2LoadingOverlay.classList.add('hidden');
+                        }, 100);
+                    }
+                });
+                
+                newZoomifySource.on('tileloaderror', function() {
+                    if (jp2TileIndicator) {
+                        jp2TileIndicator.classList.remove('active');
+                    }
+                });
+
                 // Update view extent if size changed
                 const imageExtent = newZoomifySource.getTileGrid().getExtent();
                 view.getProjection().setExtent(imageExtent);
@@ -1877,6 +2071,15 @@
                 // Function to update BFI image source
         function updateBFIImage(imageType) {
                 if (!bfiOlMap || !bfiView) return;
+                
+                // Show loading overlay when switching BFI image types
+                const bfiLoadingOverlay = document.getElementById('bfi_loading_overlay');
+                const bfiTileIndicator = document.getElementById('bfi_tile_indicator');
+                if (bfiLoadingOverlay) {
+                    bfiLoadingOverlay.classList.remove('hidden');
+                    bfiLoadingOverlay.querySelector('.loading-text').textContent = 
+                        imageType === 'mri' ? 'Loading MRI Image...' : 'Loading BFI Image...';
+                }
 
                 let newUrl, newSize, newRotation;
                 if (imageType === 'mri') {
@@ -1905,6 +2108,32 @@
                 imageExtent: extent,
                 projection: bfiView.getProjection()
                 });
+                
+                // Add loading event handlers for BFI image source
+                newImageSource.on('imageloadstart', function() {
+                    if (bfiTileIndicator) {
+                        bfiTileIndicator.classList.add('active');
+                    }
+                });
+                
+                newImageSource.on('imageloadend', function() {
+                    if (bfiTileIndicator) {
+                        bfiTileIndicator.classList.remove('active');
+                    }
+                    // Hide loading overlay after image loads
+                    if (bfiLoadingOverlay) {
+                        setTimeout(() => {
+                            bfiLoadingOverlay.classList.add('hidden');
+                        }, 100);
+                    }
+                });
+                
+                newImageSource.on('imageloaderror', function() {
+                    if (bfiTileIndicator) {
+                        bfiTileIndicator.classList.remove('active');
+                    }
+                });
+
                 imageLayer.setSource(newImageSource);
 
                 // Update view projection extent
@@ -2295,6 +2524,11 @@
 
 
           function initializeBFIMap() {
+              // Show loading overlay
+              const bfiLoadingOverlay = document.getElementById('bfi_loading_overlay');
+              const bfiTileIndicator = document.getElementById('bfi_tile_indicator');
+              if (bfiLoadingOverlay) bfiLoadingOverlay.classList.remove('hidden');
+
               // Ensure natural dimensions are available before initializing the map
               if (!bfiLoaded || bfiNaturalWidth === 0 || bfiNaturalHeight === 0) {
                   console.warn("BFI image not loaded or dimensions not available yet. Cannot initialize BFI OpenLayers map.");
@@ -2427,6 +2661,31 @@
                   } // Fit the BFI map to its container
               }
               catch (e) { console.error("Error fitting BFI view:", e); }
+
+              // Add loading event handlers for BFI image
+              imageLayer.getSource().on('imageloadstart', function() {
+                  if (bfiTileIndicator) {
+                      bfiTileIndicator.classList.add('active');
+                  }
+              });
+              
+              imageLayer.getSource().on('imageloadend', function() {
+                  if (bfiTileIndicator) {
+                      bfiTileIndicator.classList.remove('active');
+                  }
+                  // Hide loading overlay after image loads
+                  if (bfiLoadingOverlay) {
+                      setTimeout(() => {
+                          bfiLoadingOverlay.classList.add('hidden');
+                      }, 100);
+                  }
+              });
+              
+              imageLayer.getSource().on('imageloaderror', function() {
+                  if (bfiTileIndicator) {
+                      bfiTileIndicator.classList.remove('active');
+                  }
+              });
 
               // Interaction to drag the view rectangle and pan the JP2 map
               const translate = new ol.interaction.Translate({
