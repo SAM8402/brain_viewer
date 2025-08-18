@@ -232,7 +232,7 @@
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
       }
 
-      #bfi_view_rect {
+      /* #bfi_view_rect {
           position: absolute;
           border: 1.5px solid red;
           background-color: transparent;
@@ -240,7 +240,7 @@
           cursor: grab;
           z-index: 5; /* This DOM element is no longer used for the view rect */
           display: none;
-      }
+      } */
 
       /* Controls styling */
       #controls {
@@ -979,7 +979,7 @@
             style="display: none"
           />
           <div class="bfi-overlay" id="bfi_thumb_overlay">
-            <div id="bfi_view_rect"></div>
+            <!-- <div id="bfi_view_rect"></div> -->
             <div class="pointer-lines" id="bfi_hover_crosshair">
               <div class="vline"></div>
               <div class="hline"></div>
@@ -1044,7 +1044,7 @@
               const bfiThumbnailImg = document.getElementById('bfi_thumbnail_img');
               const bfiThumbOverlay = document.getElementById('bfi_thumb_overlay');
               const bfiHoverCrosshairLines = document.getElementById('bfi_hover_crosshair');
-              const bfiViewRect = document.getElementById('bfi_view_rect');
+              // const bfiViewRect = document.getElementById('bfi_view_rect');
               const switchViewBtn = document.getElementById('switchViewBtn');
               // Send the message to the parent
               const coordinates = jp2TargetCoordinatesDisplay.textContent
@@ -1062,15 +1062,15 @@
               var bfiView = null; // Global variable for BFI OpenLayers view
               var bfiTestMarkerLayer = null; // Global variable for BFI test marker layer
               var bfiHoverMarkerLayer = null;
-              var bfiViewRectLayer = null; // For the JP2 view rectangle on the BFI map
+              // var bfiViewRectLayer = null; // For the JP2 view rectangle on the BFI map
 
               let view;
               let jp2TestMarkerLayer;
               let jp2HoverMarkerLayer;
 
               // --- State Variables ---
-              let isDraggingBFIRect = false;
-              let bfiViewRectDragOffset = { x: 0, y: 0 };
+              // let isDraggingBFIRect = false;
+              // let bfiViewRectDragOffset = { x: 0, y: 0 };
               let jp2IsFullscreen = true;
 
               // --- Core Functions (invertAffineMatrix, applyHomography, coordinate transformations, drawing, etc.) ---
@@ -1305,7 +1305,7 @@
                   }
               }
 
-              function updateBFIViewRectangle() {
+              /* function updateBFIViewRectangle() {
                   // Always hide the old DOM-based rectangle
                   bfiViewRect.style.display = 'none'; // Ensure the old DOM element is hidden
 
@@ -1441,7 +1441,7 @@
                   // Clear previous rectangle and add the new one
                   bfiViewRectLayer.getSource().clear();
                   bfiViewRectLayer.getSource().addFeature(feature);
-              }
+              } */
               function sendCoordinatesToParent(jp2X, jp2Y, bfiX, bfiY, type = 'coordinate_update') {
                   //console.log('trying to send the coordinates:', jp2X, jp2Y, bfiX, bfiY, type);
                   window.parent.postMessage('testing', '*');
@@ -1708,7 +1708,7 @@
 
                   // In your JP2 map pointermove event handler, replace the existing handler with this:
                   olMap.on('pointermove', function(event) {
-                      if (event.dragging || !bfiLoaded || !H_jp2_to_bfi || isDraggingBFIRect) {
+                      if (event.dragging || !bfiLoaded || !H_jp2_to_bfi /* || isDraggingBFIRect */) {
                           sendCoordinatesToParent(null, null, null, null, 'live_tracking');
                           return;
                       }
@@ -1765,7 +1765,7 @@
                   });
 
                 mapElement.addEventListener('mouseleave', function() {
-                      if (isDraggingBFIRect) return;
+                      // if (isDraggingBFIRect) return;
                       coordinatesDisplay.textContent = "JP2 Mouse: N/A";
                       // hideCrosshairOnBFI(bfiHoverCrosshairLines); // No longer needed
                       if (bfiHoverMarkerLayer && bfiHoverMarkerLayer.getSource()) { bfiHoverMarkerLayer.getSource().clear(); }
@@ -1775,7 +1775,7 @@
                   });
                   
                   // Ultra smooth red box updates - 240Hz-like smoothness
-                  let redBoxUpdateScheduled = false;
+                  /* let redBoxUpdateScheduled = false;
                   let lastRedBoxUpdateTime = 0;
                   const targetFPS = 240;
                   const frameInterval = 1000 / targetFPS; // ~4.17ms per frame
@@ -1786,17 +1786,17 @@
                       
                       requestAnimationFrame((currentTime) => {
                           if (currentTime - lastRedBoxUpdateTime >= frameInterval) {
-                              updateBFIViewRectangle();
+                              // updateBFIViewRectangle();
                               lastRedBoxUpdateTime = currentTime;
                           }
                           redBoxUpdateScheduled = false;
                       });
-                  }
+                  } */
                   
                   // Add real-time drag sync during pointer drag
                   olMap.on('pointerdrag', function() {
                       isDragging = true;
-                      scheduleRedBoxUpdate(); // Ultra smooth red box update
+                      // scheduleRedBoxUpdate(); // Ultra smooth red box update
                       if (syncEnabled && !isUpdatingFromSync && bfiOlMap && bfiView && (isSplitView || jp2IsFullscreen)) {
                           queueSync(syncBFIToBJP2);
                       }
@@ -1805,14 +1805,14 @@
                   // Update during any movement for ultra smooth tracking
                   olMap.on('pointermove', function() {
                       if (olMap.getView().getAnimating() || olMap.getView().getInteracting()) {
-                          scheduleRedBoxUpdate();
+                          // scheduleRedBoxUpdate();
                       }
                   });
                   
                   // Add movestart for smoother drag initialization
                   olMap.on('movestart', function() {
                       isDragging = true;
-                      scheduleRedBoxUpdate(); // Start updating immediately
+                      // scheduleRedBoxUpdate(); // Start updating immediately
                       if (syncEnabled && !isUpdatingFromSync && bfiOlMap && bfiView && (isSplitView || jp2IsFullscreen)) {
                           queueSync(syncBFIToBJP2);
                       }
@@ -1820,17 +1820,17 @@
                   
                   // Update on resolution changes (zooming)
                   view.on('change:resolution', function() {
-                      scheduleRedBoxUpdate();
+                      // scheduleRedBoxUpdate();
                   });
                   
                   // Update on center changes (panning)
                   view.on('change:center', function() {
-                      scheduleRedBoxUpdate();
+                      // scheduleRedBoxUpdate();
                   });
                   
                   olMap.on('moveend', function() {
                       isDragging = false; // Reset dragging state
-                      updateBFIViewRectangle(); // Final update to ensure accuracy
+                      // updateBFIViewRectangle(); // Final update to ensure accuracy
                       if (syncEnabled && !isUpdatingFromSync && bfiOlMap && bfiView && (isSplitView || jp2IsFullscreen)) {
                           queueSync(syncBFIToBJP2);
                       }
@@ -1900,14 +1900,14 @@
                       initializeBFIMap();
 
                       placeTestMarkers();
-                      updateBFIViewRectangle();
+                      // updateBFIViewRectangle();
                   };
                   bfiThumbnailImg.onerror = handleBfiLoadError;
               }
 
               function handleBfiLoadError() {
                    console.error("Failed to load BFI image or invalid dimensions (path: " + bfiImageUrl + "). Using placeholder.");
-                  if(bfiViewRect) bfiViewRect.style.display = 'none'; // Old DOM element
+                  // if(bfiViewRect) bfiViewRect.style.display = 'none'; // Old DOM element
                   if (bfiThumbOverlay) bfiThumbOverlay.querySelectorAll('.test-marker-bfi').forEach(m => m.remove()); // Old DOM markers
 
                   bfiThumbnailImg.src = "https://via.placeholder.com/300x250.png?text=BFI+Error";
@@ -1917,7 +1917,7 @@
                       //console.log("BFI placeholder loaded. Natural Dims set to: W=", bfiNaturalWidth, "H=", bfiNaturalHeight);
                       bfiLoaded = true;
                       placeTestMarkers();
-                      updateBFIViewRectangle();
+                      // updateBFIViewRectangle();
                   };
                   bfiThumbnailImg.onerror = () => {
                       console.error("CRITICAL: Failed to load even the placeholder BFI image. BFI functionality will be broken.");
@@ -2602,7 +2602,7 @@
               });
 
               // Layer for the JP2 view rectangle
-              bfiViewRectLayer = new ol.layer.Vector({
+              /* bfiViewRectLayer = new ol.layer.Vector({
                   source: new ol.source.Vector(),
                   style: new ol.style.Style({
                       stroke: new ol.style.Stroke({
@@ -2614,7 +2614,7 @@
                       })
                   }),
                   zIndex: 100 // Ensure the view rectangle is on top for dragging
-              });
+              }); */
 
               bfiView = new ol.View({
                   projection: pixelProjectionBFI, // Use the BFI pixel projection
@@ -2631,7 +2631,7 @@
               });
 
               bfiOlMap = new ol.Map({
-                  layers: [imageLayer, bfiViewRectLayer, bfiTestMarkerLayer, bfiHoverMarkerLayer], // Add layers
+                  layers: [imageLayer, /* bfiViewRectLayer, */ bfiTestMarkerLayer, bfiHoverMarkerLayer], // Add layers
                   target: 'bfi_ol_map', // Target element for the BFI OpenLayers map
                   view: bfiView,
                   controls: ol.control.defaults({ attribution: false, rotate: false, zoom: false })
@@ -2688,7 +2688,7 @@
               });
 
               // Interaction to drag the view rectangle and pan the JP2 map
-              const translate = new ol.interaction.Translate({
+              /* const translate = new ol.interaction.Translate({
                   layers: [bfiViewRectLayer]
               });
               translate.on('translateend', function(evt) {
@@ -2703,7 +2703,7 @@
                       setJP2ViewCenterFromImageCoords(newCenterJp2);
                   }
               });
-              bfiOlMap.addInteraction(translate);
+              bfiOlMap.addInteraction(translate); */
 
               // Enable default drag pan for the BFI map itself
               bfiOlMap.addInteraction(new ol.interaction.DragPan());
@@ -3000,7 +3000,7 @@
                                   catch (e) { console.error("Error refitting BFI view:", e); }
                               }
                           }
-                          updateBFIViewRectangle();
+                          // updateBFIViewRectangle();
                           placeTestMarkers();
                       });
                   });
@@ -3393,13 +3393,13 @@
                        H_bfi_to_jp2 = invertAffineMatrix(H_jp2_to_bfi);
                       if (!H_bfi_to_jp2) {
                           console.error("Failed to invert H_jp2_to_bfi matrix! BFI interactions depending on this may fail.");
-                          if(bfiViewRect) bfiViewRect.style.display = 'none'; // Old DOM element
+                          // if(bfiViewRect) bfiViewRect.style.display = 'none'; // Old DOM element
                       } else {
                           // console.log("H_bfi_to_jp2 (inverted matrix):", JSON.parse(JSON.stringify(H_bfi_to_jp2)));
                       }
                   } else {
                        console.error("H_jp2_to_bfi matrix is not available from backend. BFI interactions will be disabled or incorrect.");
-                       if(bfiViewRect) bfiViewRect.style.display = 'none';
+                       // if(bfiViewRect) bfiViewRect.style.display = 'none';
                   }
 
                   if (!bfiImageUrl || (typeof bfiImageUrl === 'string' && bfiImageUrl.startsWith('images_data'))) {
