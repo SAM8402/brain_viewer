@@ -23,21 +23,25 @@ def fetch_brain_viewer_details(biosample_id):
     if not bfi_value:
         logger.error(f"BFI value not found for biosample_id: {biosample_id}")
         return None
-    url = f"http://dev2adi.humanbrain.in:8000/GW/getBrainViewerDetails/IIT/V1/SS-{bfi_value}:-1:-1"
-    logger.info(f"Sending request to: {url}")
-    try:
-        response = requests.get(url, timeout=5)  # Add 5 second timeout
-        response.raise_for_status()  # Raise an error if the response code isn't 200
-        logger.info(f"Successfully fetched data from {url}")
-        return response.json()  # Or response.text based on the expected data format
-    except requests.exceptions.Timeout:
-        logger.error(f"Request timeout while fetching data from {url}")
-        return None
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching data from {url}: {e}")
-        return None
-    
-
+    urls = [
+        f"http://dev2adi.humanbrain.in:8000/GW/getBrainViewerDetails/IIT/V1/SS-{bfi_value}:-1:-1",
+        f"http://dev2mani.humanbrain.in:8000/GW/getBrainViewerDetails/IIT/V1/SS-{bfi_value}:-1:-1",
+        f"http://dev2kamal.humanbrain.in:8000/GW/getBrainViewerDetails/IIT/V1/SS-{bfi_value}:-1:-1"
+        ]
+    for url in urls:
+        logger.info(f"Trying URL: {url}")
+        logger.info(f"Sending request to: {url}")
+        try:
+            response = requests.get(url, timeout=5)  # Add 5 second timeout
+            response.raise_for_status()  # Raise an error if the response code isn't 200
+            logger.info(f"Successfully fetched data from {url}")
+            return response.json()  # Or response.text based on the expected data format
+        except requests.exceptions.Timeout:
+            logger.error(f"Request timeout while fetching data from {url}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching data from {url}: {e}")
+    logger.error("All URLs failed.")
+    return None
 def get_jp2_metadata(biosample_id, section_number):
     logger.info(
         f"Fetching JP2 metadata for biosample: {biosample_id}, section: {section_number}")
