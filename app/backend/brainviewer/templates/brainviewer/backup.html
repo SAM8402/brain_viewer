@@ -986,6 +986,7 @@
             </div>
           </div>
         </div>
+        <div class="caption">BFI Slice (Rotated)</div>
       </div>
     </div>
 
@@ -1476,209 +1477,117 @@
               let jp2Gamma = 1.0;
               let bfiGamma = 1.0;
               let jp2RenderInterval, bfiRenderInterval;
-              let jp2PostcomposeHandler, bfiPostcomposeHandler;
-              let isApplyingRGBFilter = false;
 
               // Function to apply RGB filter to JP2 map
               function applyJP2RGBFilter() {
-                  if (!olMap || isApplyingRGBFilter) return;
+                  if (!olMap) return;
                   
-                  // Remove existing handler to prevent duplicates
-                  if (jp2PostcomposeHandler) {
-                      olMap.un('postcompose', jp2PostcomposeHandler);
-                  }
-                  
-                  // Define the postcompose handler
-                  jp2PostcomposeHandler = function(event) {
-                      // Prevent recursive calls during hover events
-                      if (isApplyingRGBFilter) return;
-                      
+                  // Force re-render with color matrix filter
+                  olMap.once('postcompose', function(event) {
                       const canvas = event.context.canvas;
                       const ctx = event.context;
                       
-                      // Only apply filter if RGB values are not default
-                      if (jp2RGBOpacity.r === 1 && jp2RGBOpacity.g === 1 && jp2RGBOpacity.b === 1 && jp2Gamma === 1.0) {
-                          return;
+                      // Apply color matrix filter
+                      ctx.globalCompositeOperation = 'source-over';
+                      
+                      // Create ImageData from canvas
+                      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                      const data = imageData.data;
+                      
+                      // Apply RGB channel opacity and gamma correction
+                      for (let i = 0; i < data.length; i += 4) {
+                          // Normalize to 0-1 range
+                          let r = data[i] / 255;
+                          let g = data[i + 1] / 255;
+                          let b = data[i + 2] / 255;
+                          
+                          // Apply gamma correction
+                          r = Math.pow(r, 1 / jp2Gamma);
+                          g = Math.pow(g, 1 / jp2Gamma);
+                          b = Math.pow(b, 1 / jp2Gamma);
+                          
+                          // Apply RGB channel opacity
+                          r = r * jp2RGBOpacity.r;
+                          g = g * jp2RGBOpacity.g;
+                          b = b * jp2RGBOpacity.b;
+                          
+                          // Convert back to 0-255 range and clamp
+                          data[i] = Math.min(255, Math.max(0, r * 255));
+                          data[i + 1] = Math.min(255, Math.max(0, g * 255));
+                          data[i + 2] = Math.min(255, Math.max(0, b * 255));
+                          // Alpha channel (i + 3) remains unchanged
                       }
                       
-                      isApplyingRGBFilter = true;
-                      
-                      try {
-                          // Create ImageData from canvas
-                          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                          const data = imageData.data;
-                          const length = data.length;
-                          
-                          // Pre-calculate factors for maximum performance
-                          const rFactor = jp2RGBOpacity.r;
-                          const gFactor = jp2RGBOpacity.g;
-                          const bFactor = jp2RGBOpacity.b;
-                          const gammaFactor = 1 / jp2Gamma;
-                          
-                          // Use typed array for better performance
-                          const pixelData = new Uint8ClampedArray(data);
-                          
-                          // Optimized pixel manipulation loop - unrolled for speed
-                          for (let i = 0; i < length; i += 4) {
-                              // Direct integer operations for speed
-                              let r = pixelData[i];
-                              let g = pixelData[i + 1];
-                              let b = pixelData[i + 2];
-                              
-                              // Apply gamma and RGB factors in one step for efficiency
-                              if (gammaFactor !== 1.0) {
-                                  r = Math.pow(r / 255, gammaFactor) * 255;
-                                  g = Math.pow(g / 255, gammaFactor) * 255;
-                                  b = Math.pow(b / 255, gammaFactor) * 255;
-                              }
-                              
-                              // Apply RGB opacity (Uint8ClampedArray automatically clamps)
-                              data[i] = r * rFactor;
-                              data[i + 1] = g * gFactor;
-                              data[i + 2] = b * bFactor;
-                              // Alpha channel (i + 3) remains unchanged
-                          }
-                          
-                          // Put the modified image data back
-                          ctx.putImageData(imageData, 0, 0);
-                      } catch (e) {
-                          console.warn('JP2 RGB filter failed:', e);
-                      } finally {
-                          isApplyingRGBFilter = false;
-                      }
-                  };
+                      // Put the modified image data back
+                      ctx.putImageData(imageData, 0, 0);
+                  });
                   
-                  // Add the handler
-                  olMap.on('postcompose', jp2PostcomposeHandler);
-                  
-                  // Trigger immediate render without delay
-                  if (olMap) olMap.render();
+                  olMap.render();
               }
 
               // Function to apply RGB filter to BFI map
               function applyBFIRGBFilter() {
-                  if (!bfiOlMap || isApplyingRGBFilter) return;
+                  if (!bfiOlMap) return;
                   
-                  // Remove existing handler to prevent duplicates
-                  if (bfiPostcomposeHandler) {
-                      bfiOlMap.un('postcompose', bfiPostcomposeHandler);
-                  }
-                  
-                  // Define the postcompose handler
-                  bfiPostcomposeHandler = function(event) {
-                      // Prevent recursive calls during hover events
-                      if (isApplyingRGBFilter) return;
-                      
+                  // Use the same efficient method as JP2 with postcompose event
+                  bfiOlMap.once('postcompose', function(event) {
                       const canvas = event.context.canvas;
                       const ctx = event.context;
                       
-                      // Only apply filter if RGB values are not default
-                      if (bfiRGBOpacity.r === 1 && bfiRGBOpacity.g === 1 && bfiRGBOpacity.b === 1 && bfiGamma === 1.0) {
-                          return;
+                      // Apply color matrix filter
+                      ctx.globalCompositeOperation = 'source-over';
+                      
+                      // Create ImageData from canvas
+                      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                      const data = imageData.data;
+                      
+                      // Apply RGB channel opacity and gamma correction
+                      for (let i = 0; i < data.length; i += 4) {
+                          // Normalize to 0-1 range
+                          let r = data[i] / 255;
+                          let g = data[i + 1] / 255;
+                          let b = data[i + 2] / 255;
+                          
+                          // Apply gamma correction
+                          r = Math.pow(r, 1 / bfiGamma);
+                          g = Math.pow(g, 1 / bfiGamma);
+                          b = Math.pow(b, 1 / bfiGamma);
+                          
+                          // Apply RGB channel opacity
+                          r = r * bfiRGBOpacity.r;
+                          g = g * bfiRGBOpacity.g;
+                          b = b * bfiRGBOpacity.b;
+                          
+                          // Convert back to 0-255 range and clamp
+                          data[i] = Math.min(255, Math.max(0, r * 255));
+                          data[i + 1] = Math.min(255, Math.max(0, g * 255));
+                          data[i + 2] = Math.min(255, Math.max(0, b * 255));
+                          // Alpha channel (i + 3) remains unchanged
                       }
                       
-                      isApplyingRGBFilter = true;
-                      
-                      try {
-                          // Create ImageData from canvas
-                          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                          const data = imageData.data;
-                          const length = data.length;
-                          
-                          // Pre-calculate factors for maximum performance
-                          const rFactor = bfiRGBOpacity.r;
-                          const gFactor = bfiRGBOpacity.g;
-                          const bFactor = bfiRGBOpacity.b;
-                          const gammaFactor = 1 / bfiGamma;
-                          
-                          // Use typed array for better performance
-                          const pixelData = new Uint8ClampedArray(data);
-                          
-                          // Optimized pixel manipulation loop - unrolled for speed
-                          for (let i = 0; i < length; i += 4) {
-                              // Direct integer operations for speed
-                              let r = pixelData[i];
-                              let g = pixelData[i + 1];
-                              let b = pixelData[i + 2];
-                              
-                              // Apply gamma and RGB factors in one step for efficiency
-                              if (gammaFactor !== 1.0) {
-                                  r = Math.pow(r / 255, gammaFactor) * 255;
-                                  g = Math.pow(g / 255, gammaFactor) * 255;
-                                  b = Math.pow(b / 255, gammaFactor) * 255;
-                              }
-                              
-                              // Apply RGB opacity (Uint8ClampedArray automatically clamps)
-                              data[i] = r * rFactor;
-                              data[i + 1] = g * gFactor;
-                              data[i + 2] = b * bFactor;
-                              // Alpha channel (i + 3) remains unchanged
-                          }
-                          
-                          // Put the modified image data back
-                          ctx.putImageData(imageData, 0, 0);
-                      } catch (e) {
-                          console.warn('BFI RGB filter failed:', e);
-                      } finally {
-                          isApplyingRGBFilter = false;
-                      }
-                  };
+                      // Put the modified image data back
+                      ctx.putImageData(imageData, 0, 0);
+                  });
                   
-                  // Add the handler
-                  bfiOlMap.on('postcompose', bfiPostcomposeHandler);
-                  
-                  // Trigger immediate render without delay
-                  if (bfiOlMap) bfiOlMap.render();
+                  bfiOlMap.render();
               }
 
               function startJP2RGBRendering() {
-                  // Clear any existing interval
                   if (jp2RenderInterval) clearInterval(jp2RenderInterval);
-                  
-                  // Only start interval if RGB values are not default
-                  if (jp2RGBOpacity.r !== 1 || jp2RGBOpacity.g !== 1 || jp2RGBOpacity.b !== 1 || jp2Gamma !== 1.0) {
-                      jp2RenderInterval = setInterval(() => {
-                          if (olMap && !isApplyingRGBFilter) {
-                              applyJP2RGBFilter();
-                          }
-                      }, 4); // 240Hz - 4ms interval for ultra-smooth rendering
-                  }
+                  jp2RenderInterval = setInterval(() => {
+                      if (olMap && (jp2RGBOpacity.r !== 1 || jp2RGBOpacity.g !== 1 || jp2RGBOpacity.b !== 1 || jp2Gamma !== 1.0)) {
+                          applyJP2RGBFilter();
+                      }
+                  }, 100);
               }
 
               function startBFIRGBRendering() {
-                  // Clear any existing interval
                   if (bfiRenderInterval) clearInterval(bfiRenderInterval);
-                  
-                  // Only start interval if RGB values are not default
-                  if (bfiRGBOpacity.r !== 1 || bfiRGBOpacity.g !== 1 || bfiRGBOpacity.b !== 1 || bfiGamma !== 1.0) {
-                      bfiRenderInterval = setInterval(() => {
-                          if (bfiOlMap && !isApplyingRGBFilter) {
-                              applyBFIRGBFilter();
-                          }
-                      }, 4); // 240Hz - 4ms interval for ultra-smooth rendering
-                  }
-              }
-              
-              function stopJP2RGBRendering() {
-                  if (jp2RenderInterval) {
-                      clearInterval(jp2RenderInterval);
-                      jp2RenderInterval = null;
-                  }
-                  if (jp2PostcomposeHandler && olMap) {
-                      olMap.un('postcompose', jp2PostcomposeHandler);
-                      jp2PostcomposeHandler = null;
-                  }
-              }
-              
-              function stopBFIRGBRendering() {
-                  if (bfiRenderInterval) {
-                      clearInterval(bfiRenderInterval);
-                      bfiRenderInterval = null;
-                  }
-                  if (bfiPostcomposeHandler && bfiOlMap) {
-                      bfiOlMap.un('postcompose', bfiPostcomposeHandler);
-                      bfiPostcomposeHandler = null;
-                  }
+                  bfiRenderInterval = setInterval(() => {
+                      if (bfiOlMap && (bfiRGBOpacity.r !== 1 || bfiRGBOpacity.g !== 1 || bfiRGBOpacity.b !== 1 || bfiGamma !== 1.0)) {
+                          applyBFIRGBFilter();
+                      }
+                  }, 100);
               }
 
               function initializeJP2Map() {
@@ -3340,14 +3249,7 @@
                         const value = this.value / 100;
                         jp2RGBOpacity[channel] = value;
                         jp2ValueDisplay.textContent = this.value + '%';
-                        
-                        // Only apply filter and start rendering if needed
-                        if (value !== 1 || jp2Gamma !== 1.0) {
-                            applyJP2RGBFilter();
-                            startJP2RGBRendering();
-                        } else if (jp2RGBOpacity.r === 1 && jp2RGBOpacity.g === 1 && jp2RGBOpacity.b === 1) {
-                            stopJP2RGBRendering();
-                        }
+                        applyJP2RGBFilter();
                     });
 
                     const bfiSlider = document.getElementById(`bfi-${channel}-slider`);
@@ -3357,14 +3259,8 @@
                         const value = this.value / 100;
                         bfiRGBOpacity[channel] = value;
                         bfiValueDisplay.textContent = this.value + '%';
-                        
-                        // Only apply filter and start rendering if needed
-                        if (value !== 1 || bfiGamma !== 1.0) {
-                            applyBFIRGBFilter();
-                            startBFIRGBRendering();
-                        } else if (bfiRGBOpacity.r === 1 && bfiRGBOpacity.g === 1 && bfiRGBOpacity.b === 1) {
-                            stopBFIRGBRendering();
-                        }
+                        console.log(`BFI ${channel.toUpperCase()} changed to:`, value);
+                        applyBFIRGBFilter();
                     });
 
                     // Combined RGB controls - affects both images simultaneously
@@ -3390,10 +3286,6 @@
                         // Apply filters to both images
                         applyJP2RGBFilter();
                         applyBFIRGBFilter();
-                        
-                        // Start continuous rendering for both images
-                        startJP2RGBRendering();
-                        startBFIRGBRendering();
                     });
                 });
 
@@ -3404,14 +3296,7 @@
                 jp2GammaSlider.addEventListener('input', function() {
                     jp2Gamma = this.value / 100; // Convert range 10-300 to 0.1-3.0
                     jp2GammaValue.textContent = jp2Gamma.toFixed(1);
-                    
-                    // Only apply and start rendering if not default
-                    if (jp2Gamma !== 1.0 || jp2RGBOpacity.r !== 1 || jp2RGBOpacity.g !== 1 || jp2RGBOpacity.b !== 1) {
-                        applyJP2RGBFilter();
-                        startJP2RGBRendering();
-                    } else {
-                        stopJP2RGBRendering();
-                    }
+                    applyJP2RGBFilter();
                 });
 
                 const bfiGammaSlider = document.getElementById('bfi-gamma-slider');
@@ -3420,14 +3305,8 @@
                 bfiGammaSlider.addEventListener('input', function() {
                     bfiGamma = this.value / 100; // Convert range 10-300 to 0.1-3.0
                     bfiGammaValue.textContent = bfiGamma.toFixed(1);
-                    
-                    // Only apply and start rendering if not default
-                    if (bfiGamma !== 1.0 || bfiRGBOpacity.r !== 1 || bfiRGBOpacity.g !== 1 || bfiRGBOpacity.b !== 1) {
-                        applyBFIRGBFilter();
-                        startBFIRGBRendering();
-                    } else {
-                        stopBFIRGBRendering();
-                    }
+                    console.log('BFI gamma changed to:', bfiGamma);
+                    applyBFIRGBFilter();
                 });
 
                 const combinedGammaSlider = document.getElementById('combined-gamma-slider');
@@ -3450,10 +3329,6 @@
                     // Apply filters to both images
                     applyJP2RGBFilter();
                     applyBFIRGBFilter();
-                    
-                    // Start continuous rendering for both images
-                    startJP2RGBRendering();
-                    startBFIRGBRendering();
                 });
 
                 // Reset functions
@@ -3467,12 +3342,7 @@
                     jp2Gamma = 1.0;
                     document.getElementById('jp2-gamma-slider').value = 100;
                     document.getElementById('jp2-gamma-value').textContent = '1.0';
-                    
-                    // Stop RGB rendering since values are back to default
-                    stopJP2RGBRendering();
-                    
-                    // Apply one final render to show reset
-                    if (olMap) olMap.render();
+                    applyJP2RGBFilter();
                 };
 
                 window.resetBFIRGB = function() {
@@ -3485,12 +3355,7 @@
                     bfiGamma = 1.0;
                     document.getElementById('bfi-gamma-slider').value = 100;
                     document.getElementById('bfi-gamma-value').textContent = '1.0';
-                    
-                    // Stop RGB rendering since values are back to default
-                    stopBFIRGBRendering();
-                    
-                    // Apply one final render to show reset
-                    if (bfiOlMap) bfiOlMap.render();
+                    applyBFIRGBFilter();
                 };
 
                 window.resetAllRGB = function() {
@@ -3518,13 +3383,8 @@
                     document.getElementById('bfi-gamma-value').textContent = '1.0';
                     document.getElementById('combined-gamma-value').textContent = '1.0';
                     
-                    // Stop both RGB renderings since values are back to default
-                    stopJP2RGBRendering();
-                    stopBFIRGBRendering();
-                    
-                    // Apply final renders to show reset
-                    if (olMap) olMap.render();
-                    if (bfiOlMap) bfiOlMap.render();
+                    applyJP2RGBFilter();
+                    applyBFIRGBFilter();
                 };
 
 

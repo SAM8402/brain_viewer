@@ -1,3 +1,0 @@
-find  bfiView.setResolution(currentBfiResolution / 1.8);
-bfiView.setResolution(currentBfiResolution / 1.8);
-cp ./142_original_to_bfiw.json /home/projects/bfi_viewer/app/backend/brainviewer/data/
