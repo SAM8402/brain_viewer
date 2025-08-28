@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NISSL-BFI Offline Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .upload-section {
+            background-color: #e3f2fd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border: 2px dashed #2196F3;
+        }
+        .upload-row {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .upload-row label {
+            display: inline-block;
+            width: 150px;
+            font-weight: bold;
+        }
+        .upload-row input[type="file"] {
+            margin: 0 10px;
+        }
+        .upload-row input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            margin: 0 10px;
+        }
+        .load-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .load-btn:hover {
+            background-color: #45a049;
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .controls button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #1976D2;
+        }
+        .image-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            position: relative;
+        }
+        .image-wrapper {
+            position: relative;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .image-wrapper h3 {
+            text-align: center;
+            margin: 10px 0;
+            color: #555;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+            max-width: 600px;
+            height: auto;
+            border: 1px solid #ccc;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .legend {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .legend span {
+            margin: 0 20px;
+        }
+        .red-dot, .green-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .red-dot { background-color: red; }
+        .green-dot { background-color: lime; }
+        .error { color: red; text-align: center; margin: 20px 0; }
+        .success { color: green; text-align: center; margin: 20px 0; }
+        .hidden { display: none; }
+        .status-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NISSL-BFI Offline Viewer</h1>
+        
+        <div class="status-box">
+            <strong>🔧 No Server Required!</strong> This viewer works completely offline by loading files directly.
+        </div>
+        
+        <div class="upload-section">
+            <h3>📁 Load Files for Viewing</h3>
+            <div class="upload-row">
+                <label>JSON Transform:</label>
+                <input type="file" id="jsonFile" accept=".json" />
+                <small>(142_orginal_to_bfiw.json)</small>
+            </div>
+            <div class="upload-row">
+                <label>Nissl Image:</label>
+                <input type="file" id="nisslFile" accept="image/*" />
+                <small>(e.g., 1000.jpg from 142_nisl_ser folder)</small>
+            </div>
+            <div class="upload-row">
+                <label>BFI Image:</label>
+                <input type="file" id="bfiFile" accept="image/*" />
+                <small>(e.g., bfi-1000.png from 142_BFI_cropped folder)</small>
+            </div>
+            <div class="upload-row">
+                <label>Slice Number:</label>
+                <input type="number" id="sliceNumber" value="1000" min="1" max="2119" />
+                <small>(must match the images you selected)</small>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="load-btn" onclick="loadViewer()">🚀 Start Viewer</button>
+            </div>
+        </div>
+        
+        <div id="viewerSection" class="hidden">
+            <div class="controls">
+                <span>Current Slice: <strong id="currentSliceDisplay">1000</strong></span>
+                <button onclick="clearPoints()">Clear Points</button>
+            </div>
+            
+            <div class="legend">
+                <span><div class="red-dot" style="display:inline-block"></div>Your clicks</span>
+                <span><div class="green-dot" style="display:inline-block"></div>Corresponding points</span>
+            </div>
+            
+            <div id="status" class="success">Ready! Click on either image to see anatomical correspondence.</div>
+            
+            <div class="image-container">
+                <div class="image-wrapper">
+                    <h3>NISSL Image</h3>
+                    <canvas id="nisslCanvas"></canvas>
+                </div>
+                <div class="image-wrapper">
+                    <h3>BFI Image</h3>
+                    <canvas id="bfiCanvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="info" id="info">
+                Click on either image to see corresponding anatomical points. Red dots = your clicks, Green dots = corresponding locations.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let transformData = null;
+        let currentSlice = 1000;
+        let nisslCtx, bfiCtx;
+        let nisslCanvas, bfiCanvas;
+        let nisslImage = new Image();
+        let bfiImage = new Image();
+        let points = [];
+        
+        function loadViewer() {
+            const jsonFile = document.getElementById('jsonFile').files[0];
+            const nisslFile = document.getElementById('nisslFile').files[0];
+            const bfiFile = document.getElementById('bfiFile').files[0];
+            const sliceNum = parseInt(document.getElementById('sliceNumber').value);
+            
+            if (!jsonFile || !nisslFile || !bfiFile) {
+                alert('❌ Please select all three files: JSON transformation data, Nissl image, and BFI image.');
+                return;
+            }
+            
+            currentSlice = sliceNum;
+            document.getElementById('currentSliceDisplay').textContent = currentSlice;
+            
+            // Load JSON transformation data
+            const jsonReader = new FileReader();
+            jsonReader.onload = function(event) {
+                try {
+                    transformData = JSON.parse(event.target.result);
+                    console.log('✅ Transform data loaded');
+                    loadImages(nisslFile, bfiFile);
+                } catch (error) {
+                    alert('❌ Error parsing JSON file: ' + error.message);
+                }
+            };
+            jsonReader.readAsText(jsonFile);
+        }
+        
+        function loadImages(nisslFile, bfiFile) {
+            let imagesLoaded = 0;
+            
+            function checkComplete() {
+                imagesLoaded++;
+                if (imagesLoaded === 2) {
+                    initializeViewer();
+                }
+            }
+            
+            // Load Nissl image
+            const nisslReader = new FileReader();
+            nisslReader.onload = function(event) {
+                nisslImage.onload = function() {
+                    console.log(`✅ NISSL loaded: ${nisslImage.width}x${nisslImage.height}`);
+                    checkComplete();
+                };
+                nisslImage.src = event.target.result;
+            };
+            nisslReader.readAsDataURL(nisslFile);
+            
+            // Load BFI image
+            const bfiReader = new FileReader();
+            bfiReader.onload = function(event) {
+                bfiImage.onload = function() {
+                    console.log(`✅ BFI loaded: ${bfiImage.width}x${bfiImage.height}`);
+                    checkComplete();
+                };
+                bfiImage.src = event.target.result;
+            };
+            bfiReader.readAsDataURL(bfiFile);
+        }
+        
+        function initializeViewer() {
+            // Show viewer, hide upload section
+            document.getElementById('viewerSection').className = '';
+            
+            // Initialize canvases
+            nisslCanvas = document.getElementById('nisslCanvas');
+            bfiCanvas = document.getElementById('bfiCanvas');
+            nisslCtx = nisslCanvas.getContext('2d');
+            bfiCtx = bfiCanvas.getContext('2d');
+            
+            // Set canvas dimensions and draw images
+            nisslCanvas.width = nisslImage.width;
+            nisslCanvas.height = nisslImage.height;
+            nisslCtx.drawImage(nisslImage, 0, 0);
+            
+            bfiCanvas.width = bfiImage.width;
+            bfiCanvas.height = bfiImage.height;
+            bfiCtx.drawImage(bfiImage, 0, 0);
+            
+            // Add click event handlers
+            nisslCanvas.addEventListener('click', (e) => handleClick(e, 'nissl'));
+            bfiCanvas.addEventListener('click', (e) => handleClick(e, 'bfi'));
+            
+            console.log('🎉 Viewer ready!');
+        }
+        
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+                y: (evt.clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+        
+        function handleClick(e, imageType) {
+            if (!transformData) return;
+            
+            const canvas = imageType === 'nissl' ? nisslCanvas : bfiCanvas;
+            const canvasPos = getMousePos(canvas, e);
+            
+            // Find transformation data for current slice
+            const sliceKey = `${currentSlice}.jpg`;
+            const sliceData = transformData[sliceKey];
+            
+            if (!sliceData) {
+                document.getElementById('status').innerHTML = `❌ No transformation data for slice ${currentSlice}`;
+                document.getElementById('status').className = 'error';
+                return;
+            }
+            
+            if (sliceData.status !== 'success') {
+                document.getElementById('status').innerHTML = `❌ Transform failed for slice ${currentSlice}: ${sliceData.error_message}`;
+                document.getElementById('status').className = 'error';
+                return;
+            }
+            
+            document.getElementById('status').innerHTML = `✅ Using inverse transform for slice ${currentSlice}`;
+            document.getElementById('status').className = 'success';
+            
+            let transformedPoint;
+            
+            if (imageType === 'nissl') {
+                // NISSL to BFI transformation
+                // First scale canvas coordinates to match the coordinate system in the JSON
+                const scaledCanvasPos = {
+                    x: canvasPos.x * (85248 / nisslCanvas.width),  // Scale up to canvas coordinate system
+                    y: canvasPos.y * (85248 / nisslCanvas.height)
+                };
+                
+                // Transform from canvas coordinates to BFW coordinates - USING H_canvas_to_bfw
+                const bfwPoint = transformPoint(scaledCanvasPos, sliceData.H_canvas_to_bfw);
+                
+                // Scale BFW coordinates to BFI canvas coordinates
+                transformedPoint = {
+                    x: (bfwPoint.x / sliceData.bfw_dims_original[0]) * bfiCanvas.width,
+                    y: (bfwPoint.y / sliceData.bfw_dims_original[1]) * bfiCanvas.height
+                };
+                
+                console.log(`NISSL→BFI: Canvas(${canvasPos.x.toFixed(1)}, ${canvasPos.y.toFixed(1)}) → Scaled(${scaledCanvasPos.x.toFixed(1)}, ${scaledCanvasPos.y.toFixed(1)}) → BFW(${bfwPoint.x.toFixed(1)}, ${bfwPoint.y.toFixed(1)}) → BFI(${transformedPoint.x.toFixed(1)}, ${transformedPoint.y.toFixed(1)})`);
+            } else {
+                // BFI to NISSL transformation
+                // Scale BFI canvas coordinates to BFW coordinates
+                const bfwPos = {
+                    x: (canvasPos.x / bfiCanvas.width) * sliceData.bfw_dims_original[0],
+                    y: (canvasPos.y / bfiCanvas.height) * sliceData.bfw_dims_original[1]
+                };
+                
+                // Transform from BFW coordinates to canvas coordinates - USING H_bfw_to_canvas
+                const scaledCanvasPoint = transformPoint(bfwPos, sliceData.H_bfw_to_canvas);
+                
+                // Scale down to actual canvas coordinates
+                transformedPoint = {
+                    x: scaledCanvasPoint.x * (nisslCanvas.width / 85248),
+                    y: scaledCanvasPoint.y * (nisslCanvas.height / 85248)
+                };
+                
+                console.log(`BFI→NISSL: Canvas(${canvasPos.x.toFixed(1)}, ${canvasPos.y.toFixed(1)}) → BFW(${bfwPos.x.toFixed(1)}, ${bfwPos.y.toFixed(1)}) → Scaled(${scaledCanvasPoint.x.toFixed(1)}, ${scaledCanvasPoint.y.toFixed(1)}) → NISSL(${transformedPoint.x.toFixed(1)}, ${transformedPoint.y.toFixed(1)})`);
+            }
+            
+            // Store the point pair
+            points.push({
+                source: { x: canvasPos.x, y: canvasPos.y, type: imageType },
+                target: { x: transformedPoint.x, y: transformedPoint.y, type: imageType === 'nissl' ? 'bfi' : 'nissl' }
+            });
+            
+            redrawPoints();
+            updateInfo(canvasPos, transformedPoint, imageType);
+        }
+        
+        // Matrix inversion function for 3x3 homography matrices
+        function invertMatrix3x3(matrix) {
+            const m = matrix;
+            
+            // Calculate determinant
+            const det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+                       m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+                       m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+            
+            if (Math.abs(det) < 1e-10) {
+                console.error('Matrix is singular, cannot invert');
+                return matrix; // Return original matrix as fallback
+            }
+            
+            // Calculate inverse matrix
+            const invDet = 1.0 / det;
+            
+            const inverse = [
+                [
+                    invDet * (m[1][1] * m[2][2] - m[1][2] * m[2][1]),
+                    invDet * (m[0][2] * m[2][1] - m[0][1] * m[2][2]),
+                    invDet * (m[0][1] * m[1][2] - m[0][2] * m[1][1])
+                ],
+                [
+                    invDet * (m[1][2] * m[2][0] - m[1][0] * m[2][2]),
+                    invDet * (m[0][0] * m[2][2] - m[0][2] * m[2][0]),
+                    invDet * (m[0][2] * m[1][0] - m[0][0] * m[1][2])
+                ],
+                [
+                    invDet * (m[1][0] * m[2][1] - m[1][1] * m[2][0]),
+                    invDet * (m[0][1] * m[2][0] - m[0][0] * m[2][1]),
+                    invDet * (m[0][0] * m[1][1] - m[0][1] * m[1][0])
+                ]
+            ];
+            
+            console.log('Matrix inverted successfully, det =', det);
+            return inverse;
+        }
+        
+        // Coordinate transformation functions
+        function scaleCanvasToTransformCoords(canvasPos, canvas) {
+            const scaleX = 85248 / canvas.width;
+            const scaleY = 85248 / canvas.height;
+            return { x: canvasPos.x * scaleX, y: canvasPos.y * scaleY };
+        }
+        
+        function scaleTransformToCanvasCoords(transformPos, canvas) {
+            const scaleX = canvas.width / 85248;
+            const scaleY = canvas.height / 85248;
+            return { x: transformPos.x * scaleX, y: transformPos.y * scaleY };
+        }
+        
+        function scaleBfiCanvasToBfwCoords(canvasPos, canvas, bfwDims) {
+            const scaleX = bfwDims[0] / canvas.width;
+            const scaleY = bfwDims[1] / canvas.height;
+            return { x: canvasPos.x * scaleX, y: canvasPos.y * scaleY };
+        }
+        
+        function scaleBfwToCanvasCoords(bfwPos, canvas, bfwDims) {
+            const scaleX = canvas.width / bfwDims[0];
+            const scaleY = canvas.height / bfwDims[1];
+            return { x: bfwPos.x * scaleX, y: bfwPos.y * scaleY };
+        }
+        
+        function transformPoint(point, H) {
+            const x = point.x, y = point.y;
+            const newX = H[0][0] * x + H[0][1] * y + H[0][2];
+            const newY = H[1][0] * x + H[1][1] * y + H[1][2];
+            const w = H[2][0] * x + H[2][1] * y + H[2][2];
+            return { x: newX / w, y: newY / w };
+        }
+        
+        function redrawPoints() {
+            // Clear canvases and redraw images
+            nisslCtx.clearRect(0, 0, nisslCanvas.width, nisslCanvas.height);
+            bfiCtx.clearRect(0, 0, bfiCanvas.width, bfiCanvas.height);
+            nisslCtx.drawImage(nisslImage, 0, 0);
+            bfiCtx.drawImage(bfiImage, 0, 0);
+            
+            // Draw all point pairs
+            points.forEach(pointPair => {
+                // Draw source point (red)
+                const sourceCtx = pointPair.source.type === 'nissl' ? nisslCtx : bfiCtx;
+                sourceCtx.fillStyle = 'red';
+                sourceCtx.beginPath();
+                sourceCtx.arc(pointPair.source.x, pointPair.source.y, 8, 0, 2 * Math.PI);
+                sourceCtx.fill();
+                
+                // Draw target point (bright green)
+                const targetCtx = pointPair.target.type === 'nissl' ? nisslCtx : bfiCtx;
+                targetCtx.fillStyle = 'lime';
+                targetCtx.beginPath();
+                targetCtx.arc(pointPair.target.x, pointPair.target.y, 8, 0, 2 * Math.PI);
+                targetCtx.fill();
+            });
+        }
+        
+        function updateInfo(sourcePoint, targetPoint, sourceType) {
+            const info = document.getElementById('info');
+            info.innerHTML = `
+                <strong>🎯 Last Click:</strong><br>
+                ${sourceType.toUpperCase()}: (${sourcePoint.x.toFixed(1)}, ${sourcePoint.y.toFixed(1)}) → 
+                ${sourceType === 'nissl' ? 'BFI' : 'NISSL'}: (${targetPoint.x.toFixed(1)}, ${targetPoint.y.toFixed(1)})<br>
+                <strong>📊 Total Correspondences:</strong> ${points.length} | 
+                <strong>🔢 Slice:</strong> ${currentSlice}
+            `;
+        }
+        
+        function clearPoints() {
+            points = [];
+            redrawPoints();
+            document.getElementById('info').innerHTML = 'Click on either image to see corresponding anatomical points.';
+        }
+    </script>
+</body>
+</html>

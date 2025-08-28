@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seamless Brain Stack Viewer - No Flicker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+        
+        #viewer-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #canvas {
+            max-width: 90vw;
+            max-height: 90vh;
+            border: 2px solid #222;
+            border-radius: 8px;
+            display: block;
+        }
+        
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.95);
+            padding: 20px 30px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        #info {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            background: rgba(20, 20, 20, 0.95);
+            padding: 15px 20px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            font-size: 14px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: #2b7de9;
+        }
+        
+        button.active {
+            background: #0d47a1;
+        }
+        
+        #slice-slider {
+            width: 400px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #333;
+            outline: none;
+            border-radius: 3px;
+        }
+        
+        #slice-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+        
+        #speed-slider {
+            width: 100px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">Loading brain images...</div>
+    
+    <div id="viewer-container" style="display: none;">
+        <canvas id="canvas"></canvas>
+    </div>
+    
+    <div id="info" style="display: none;">
+        <div>Slice: <span id="slice-num">1</span> / <span id="total-slices">0</span></div>
+        <div>FPS: <span id="fps">0</span></div>
+    </div>
+    
+    <div id="controls" style="display: none;">
+        <button id="play-pause">▶ Play</button>
+        <input type="range" id="slice-slider" min="0" max="100" value="0">
+        <div class="speed-control">
+            <label>Speed:</label>
+            <input type="range" id="speed-slider" min="1" max="30" value="10">
+            <span id="speed-value">10</span> fps
+        </div>
+        <button id="smooth-toggle">Smooth: ON</button>
+    </div>
+    
+    <script>
+        // Configuration
+        const IMAGE_FOLDER = './images/';
+        const CACHE_SIZE = 50; // Number of images to keep in memory
+        const PRELOAD_AHEAD = 20; // Number of images to preload ahead
+        
+        // State
+        let imageList = [];
+        let imageCache = new Map();
+        let currentIndex = 0;
+        let isPlaying = false;
+        let smoothTransitions = true;
+        let lastFrameTime = 0;
+        let frameCount = 0;
+        let fps = 0;
+        
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Get all images in the folder
+        async function loadImageList() {
+            // Generate image list based on pattern
+            // Assuming images are named sequentially
+            for (let i = 1; i <= 2114; i++) {
+                imageList.push(`${IMAGE_FOLDER}bfi-${i}.png`);
+            }
+            
+            document.getElementById('total-slices').textContent = imageList.length;
+            document.getElementById('slice-slider').max = imageList.length - 1;
+            
+            // Load first few images
+            await preloadImages(0, Math.min(CACHE_SIZE, imageList.length));
+            
+            // Show viewer
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('viewer-container').style.display = 'flex';
+            document.getElementById('info').style.display = 'block';
+            document.getElementById('controls').style.display = 'flex';
+            
+            // Display first image
+            await displayImage(0);
+            
+            // Start animation loop
+            requestAnimationFrame(animate);
+        }
+        
+        // Preload images
+        async function preloadImages(start, end) {
+            const promises = [];
+            
+            for (let i = start; i < end && i < imageList.length; i++) {
+                if (!imageCache.has(i)) {
+                    promises.push(loadImage(i));
+                }
+            }
+            
+            await Promise.all(promises);
+        }
+        
+        // Load single image
+        function loadImage(index) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    imageCache.set(index, img);
+                    
+                    // Manage cache size
+                    if (imageCache.size > CACHE_SIZE) {
+                        // Remove images far from current position
+                        for (let [idx, _] of imageCache) {
+                            if (Math.abs(idx - currentIndex) > CACHE_SIZE / 2) {
+                                imageCache.delete(idx);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    resolve();
+                };
+                img.onerror = () => resolve(); // Continue even if image fails
+                img.src = imageList[index];
+            });
+        }
+        
+        // Display image on canvas
+        async function displayImage(index) {
+            // Ensure image is loaded
+            if (!imageCache.has(index)) {
+                await loadImage(index);
+            }
+            
+            const img = imageCache.get(index);
+            if (!img) return;
+            
+            // Set canvas size on first image
+            if (canvas.width === 0) {
+                canvas.width = img.width;
+                canvas.height = img.height;
+            }
+            
+            // Clear and draw
+            if (smoothTransitions) {
+                // Fade effect
+                ctx.globalAlpha = 0.1;
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1;
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            // Center image on canvas
+            const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+            const x = (canvas.width - img.width * scale) / 2;
+            const y = (canvas.height - img.height * scale) / 2;
+            
+            ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+            
+            // Update UI
+            currentIndex = index;
+            document.getElementById('slice-num').textContent = index + 1;
+            document.getElementById('slice-slider').value = index;
+            
+            // Preload ahead
+            preloadImages(index + 1, index + PRELOAD_AHEAD + 1);
+        }
+        
+        // Animation loop
+        function animate(timestamp) {
+            frameCount++;
+            
+            // Update FPS
+            if (frameCount % 30 === 0) {
+                const delta = timestamp - lastFrameTime;
+                fps = Math.round(30000 / delta);
+                document.getElementById('fps').textContent = fps;
+                lastFrameTime = timestamp;
+            }
+            
+            // Play animation
+            if (isPlaying) {
+                const speed = parseInt(document.getElementById('speed-slider').value);
+                const frameDelay = 1000 / speed;
+                
+                if (!lastFrameTime || timestamp - lastFrameTime >= frameDelay) {
+                    const nextIndex = (currentIndex + 1) % imageList.length;
+                    displayImage(nextIndex);
+                }
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Event listeners
+        document.getElementById('play-pause').addEventListener('click', function() {
+            isPlaying = !isPlaying;
+            this.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
+            this.classList.toggle('active', isPlaying);
+        });
+        
+        document.getElementById('slice-slider').addEventListener('input', function(e) {
+            displayImage(parseInt(e.target.value));
+        });
+        
+        document.getElementById('speed-slider').addEventListener('input', function(e) {
+            document.getElementById('speed-value').textContent = e.target.value;
+        });
+        
+        document.getElementById('smooth-toggle').addEventListener('click', function() {
+            smoothTransitions = !smoothTransitions;
+            this.textContent = `Smooth: ${smoothTransitions ? 'ON' : 'OFF'}`;
+        });
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    document.getElementById('play-pause').click();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    displayImage(Math.max(0, currentIndex - 1));
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    displayImage(Math.min(imageList.length - 1, currentIndex + 1));
+                    break;
+            }
+        });
+        
+        // Initialize
+        loadImageList();
+    </script>
+</body>
+</html>

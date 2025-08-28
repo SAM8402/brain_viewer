@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>142 Original to BFIW Transform Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .controls input[type="text"] {
+            width: 120px;
+            padding: 5px;
+            margin: 0 10px;
+        }
+        .controls button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #45a049;
+        }
+        .image-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            position: relative;
+        }
+        .image-wrapper {
+            position: relative;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .image-wrapper h3 {
+            text-align: center;
+            margin: 10px 0;
+            color: #555;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+            max-width: 600px;
+            height: auto;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .legend {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .legend span {
+            margin: 0 20px;
+        }
+        .red-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .green-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: green;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .available-files {
+            margin: 10px 0;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>142 Original to BFIW Transform Viewer</h1>
+        
+        <div class="controls">
+            <label>Select Slice: </label>
+            <select id="sliceSelect" onchange="loadImage()">
+                <option value="">Loading slices...</option>
+            </select>
+            <button onclick="clearPoints()">Clear Points</button>
+        </div>
+        
+        <div class="available-files" id="availableFiles">
+            Loading available files...
+        </div>
+        
+        <div class="legend">
+            <span><div class="red-dot" style="display:inline-block"></div>Selected points (Original)</span>
+            <span><div class="green-dot" style="display:inline-block"></div>Transformed points (BFIW)</span>
+        </div>
+        
+        <div id="error" class="error"></div>
+        
+        <div class="image-container">
+            <div class="image-wrapper">
+                <h3>Original Image</h3>
+                <canvas id="originalCanvas"></canvas>
+            </div>
+            <div class="image-wrapper">
+                <h3>BFI Image</h3>
+                <canvas id="bfiwCanvas"></canvas>
+            </div>
+        </div>
+        
+        <div class="info" id="info">
+            Click on either image to see corresponding transformed points.
+        </div>
+    </div>
+
+    <script>
+        let transformData = null;
+        let currentImageName = '652.jpg';
+        let originalCtx, bfiwCtx;
+        let originalCanvas, bfiwCanvas;
+        let originalImage = new Image();
+        let bfiwImage = new Image();
+        let points = [];
+        
+        // Load transformation data
+        fetch('142_original_to_bfiw.json')
+            .then(response => {
+                console.log('Fetch response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                transformData = data;
+                console.log('Transformation data loaded:', Object.keys(data).length, 'entries');
+                console.log('First few keys:', Object.keys(data).slice(0, 5));
+                displayAvailableFiles();
+                loadImage();
+            })
+            .catch(error => {
+                console.error('Error loading transformation data:', error);
+                document.getElementById('error').textContent = 'Error loading transformation data: ' + error.message;
+            });
+        
+        window.onload = function() {
+            originalCanvas = document.getElementById('originalCanvas');
+            bfiwCanvas = document.getElementById('bfiwCanvas');
+            originalCtx = originalCanvas.getContext('2d');
+            bfiwCtx = bfiwCanvas.getContext('2d');
+            
+            originalCanvas.addEventListener('click', function(e) {
+                handleClick(e, 'original');
+            });
+            
+            bfiwCanvas.addEventListener('click', function(e) {
+                handleClick(e, 'bfiw');
+            });
+        };
+        
+        function displayAvailableFiles() {
+            if (!transformData) return;
+            
+            const availableFiles = Object.keys(transformData).filter(key => 
+                transformData[key].status === 'success'
+            ).sort((a, b) => {
+                const numA = parseInt(a.match(/\d+/)?.[0] || '0');
+                const numB = parseInt(b.match(/\d+/)?.[0] || '0');
+                return numA - numB;
+            });
+            
+            // Populate dropdown
+            const select = document.getElementById('sliceSelect');
+            select.innerHTML = '';
+            availableFiles.forEach(file => {
+                const option = document.createElement('option');
+                option.value = file;
+                option.textContent = file;
+                select.appendChild(option);
+            });
+            
+            // Set first file as default
+            if (availableFiles.length > 0) {
+                currentImageName = availableFiles[0];
+                select.value = currentImageName;
+            }
+            
+            document.getElementById('availableFiles').innerHTML = 
+                `Total available slices: ${availableFiles.length}`;
+        }
+        
+        function loadImage() {
+            currentImageName = document.getElementById('sliceSelect').value;
+            if (!currentImageName) return;
+            
+            document.getElementById('error').textContent = '';
+            
+            console.log('Looking for image:', currentImageName);
+            console.log('Available keys:', transformData ? Object.keys(transformData).slice(0, 10) : 'No data');
+            
+            if (!transformData || !transformData[currentImageName]) {
+                const availableKeys = transformData ? Object.keys(transformData).slice(0, 10) : [];
+                document.getElementById('error').textContent = `No transformation data found for ${currentImageName}. Available: ${availableKeys.join(', ')}`;
+                return;
+            }
+            
+            const imageData = transformData[currentImageName];
+            if (imageData.status !== 'success') {
+                document.getElementById('error').textContent = `Transform failed for ${currentImageName}: ${imageData.error_message}`;
+                return;
+            }
+            
+            // Extract just the filename and construct the correct path
+            const filename = currentImageName;
+            const sliceNum = filename.match(/\d+/)[0];
+            const originalPath = `142/142_nisl_ser/${filename}`;
+            
+            originalImage.onload = function() {
+                originalCanvas.width = originalImage.width;
+                originalCanvas.height = originalImage.height;
+                originalCtx.drawImage(originalImage, 0, 0);
+                console.log(`Original image dimensions: ${originalImage.width}x${originalImage.height}`);
+                
+                // Load the BFI image
+                const bfiPath = `142/142_BFI_cropped/bfi-${sliceNum}.png`;
+                bfiwImage.src = bfiPath;
+            };
+            
+            bfiwImage.onload = function() {
+                bfiwCanvas.width = bfiwImage.width;
+                bfiwCanvas.height = bfiwImage.height;
+                bfiwCtx.drawImage(bfiwImage, 0, 0);
+                console.log(`BFI image dimensions: ${bfiwImage.width}x${bfiwImage.height}`);
+                redrawPoints();
+            };
+            
+            originalImage.onerror = function() {
+                document.getElementById('error').textContent = 'Error loading original image: ' + originalPath;
+            };
+            
+            bfiwImage.onerror = function() {
+                document.getElementById('error').textContent = 'Error loading BFI image';
+            };
+            
+            originalImage.src = originalPath;
+            
+            points = [];
+            updateInfo();
+        }
+        
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+                y: (evt.clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+        
+        function handleClick(e, imageType) {
+            if (!transformData) return;
+            
+            const imageData = transformData[currentImageName];
+            if (!imageData || imageData.status !== 'success') return;
+            
+            const canvas = imageType === 'original' ? originalCanvas : bfiwCanvas;
+            const canvasPos = getMousePos(canvas, e);
+            
+            let sourcePoint, targetPoint;
+            
+            if (imageType === 'original') {
+                // Transform from NISSL to BFI through world coordinates
+                sourcePoint = canvasPos;
+                
+                // Step 1: Transform NISSL point to world coordinates
+                const worldPoint = transformPoint(canvasPos, imageData.H_canvas_to_bfw);
+                
+                // Step 2: Find where the NISSL image maps in world space
+                // Transform the four corners to get the bounds
+                const nisslCorners = [[0,0,1], [1333,0,1], [1333,1333,1], [0,1333,1]];
+                const worldCorners = nisslCorners.map(c => {
+                    const w = transformPoint({x: c[0], y: c[1]}, imageData.H_canvas_to_bfw);
+                    return [w.x, w.y];
+                });
+                
+                const nisslWorldMinX = Math.min(...worldCorners.map(c => c[0]));
+                const nisslWorldMaxX = Math.max(...worldCorners.map(c => c[0]));
+                const nisslWorldMinY = Math.min(...worldCorners.map(c => c[1]));
+                const nisslWorldMaxY = Math.max(...worldCorners.map(c => c[1]));
+                
+                // Step 3: Map from NISSL's world region to BFI image coordinates
+                // Assuming BFI image represents the same world region
+                targetPoint = {
+                    x: ((worldPoint.x - nisslWorldMinX) / (nisslWorldMaxX - nisslWorldMinX)) * bfiwCanvas.width,
+                    y: ((worldPoint.y - nisslWorldMinY) / (nisslWorldMaxY - nisslWorldMinY)) * bfiwCanvas.height
+                };
+                
+                console.log('NISSL point:', canvasPos);
+                console.log('World point:', worldPoint);
+                console.log('NISSL world bounds:', {nisslWorldMinX, nisslWorldMaxX, nisslWorldMinY, nisslWorldMaxY});
+                console.log('BFI point:', targetPoint);
+            } else {
+                // Transform from BFI to NISSL through world coordinates
+                sourcePoint = canvasPos;
+                
+                // Step 1: Find where the NISSL image maps in world space (same as above)
+                const nisslCorners = [[0,0,1], [1333,0,1], [1333,1333,1], [0,1333,1]];
+                const worldCorners = nisslCorners.map(c => {
+                    const w = transformPoint({x: c[0], y: c[1]}, imageData.H_canvas_to_bfw);
+                    return [w.x, w.y];
+                });
+                
+                const nisslWorldMinX = Math.min(...worldCorners.map(c => c[0]));
+                const nisslWorldMaxX = Math.max(...worldCorners.map(c => c[0]));
+                const nisslWorldMinY = Math.min(...worldCorners.map(c => c[1]));
+                const nisslWorldMaxY = Math.max(...worldCorners.map(c => c[1]));
+                
+                // Step 2: Map BFI coordinates to world coordinates (assuming same region)
+                const worldPoint = {
+                    x: (canvasPos.x / bfiwCanvas.width) * (nisslWorldMaxX - nisslWorldMinX) + nisslWorldMinX,
+                    y: (canvasPos.y / bfiwCanvas.height) * (nisslWorldMaxY - nisslWorldMinY) + nisslWorldMinY
+                };
+                
+                // Step 3: Transform world coordinates to NISSL
+                targetPoint = transformPoint(worldPoint, imageData.H_bfw_to_canvas);
+                
+                console.log('BFI point:', canvasPos);
+                console.log('World point:', worldPoint);
+                console.log('NISSL point:', targetPoint);
+            }
+            
+            points.push({
+                source: { x: sourcePoint.x, y: sourcePoint.y, type: imageType },
+                target: { x: targetPoint.x, y: targetPoint.y, type: imageType === 'original' ? 'bfiw' : 'original' }
+            });
+            
+            redrawPoints();
+            updateInfo(sourcePoint, targetPoint, imageType);
+        }
+        
+        function transformPoint(point, H) {
+            // Apply homography transformation
+            const x = point.x;
+            const y = point.y;
+            
+            const newX = H[0][0] * x + H[0][1] * y + H[0][2];
+            const newY = H[1][0] * x + H[1][1] * y + H[1][2];
+            const w = H[2][0] * x + H[2][1] * y + H[2][2];
+            
+            const result = {
+                x: newX / w,
+                y: newY / w
+            };
+            
+            console.log(`Transform: (${x.toFixed(2)}, ${y.toFixed(2)}) -> (${result.x.toFixed(2)}, ${result.y.toFixed(2)})`);
+            
+            return result;
+        }
+        
+        function redrawPoints() {
+            // Clear and redraw original image
+            originalCtx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
+            originalCtx.drawImage(originalImage, 0, 0);
+            
+            // Clear and redraw BFI image
+            bfiwCtx.clearRect(0, 0, bfiwCanvas.width, bfiwCanvas.height);
+            bfiwCtx.drawImage(bfiwImage, 0, 0);
+            
+            // Draw all points
+            points.forEach(pointPair => {
+                // Draw source point (red) on original
+                originalCtx.fillStyle = 'red';
+                originalCtx.beginPath();
+                originalCtx.arc(pointPair.source.x, pointPair.source.y, 8, 0, 2 * Math.PI);
+                originalCtx.fill();
+                
+                // Draw transformed point (green) on BFI canvas
+                if (pointPair.target.x >= 0 && pointPair.target.x <= bfiwCanvas.width && 
+                    pointPair.target.y >= 0 && pointPair.target.y <= bfiwCanvas.height) {
+                    bfiwCtx.fillStyle = 'green';
+                    bfiwCtx.beginPath();
+                    bfiwCtx.arc(pointPair.target.x, pointPair.target.y, 8, 0, 2 * Math.PI);
+                    bfiwCtx.fill();
+                }
+            });
+        }
+        
+        function updateInfo(sourcePoint, targetPoint, sourceType) {
+            const info = document.getElementById('info');
+            if (sourcePoint && targetPoint) {
+                const sourceLabel = sourceType === 'original' ? 'Original' : 'BFI';
+                const targetLabel = sourceType === 'original' ? 'BFI' : 'Original';
+                info.innerHTML = `
+                    <strong>Last Click:</strong><br>
+                    ${sourceLabel} point: (${sourcePoint.x.toFixed(2)}, ${sourcePoint.y.toFixed(2)})<br>
+                    Corresponding ${targetLabel} point: (${targetPoint.x.toFixed(2)}, ${targetPoint.y.toFixed(2)})<br>
+                    <br>
+                    <strong>Total points marked:</strong> ${points.length}<br>
+                    <strong>Current image:</strong> ${currentImageName}
+                `;
+            } else {
+                info.innerHTML = 'Click on either image to see corresponding transformed points.';
+            }
+        }
+        
+        function clearPoints() {
+            points = [];
+            redrawPoints();
+            updateInfo();
+        }
+    </script>
+</body>
+</html>

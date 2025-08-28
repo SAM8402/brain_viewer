@@ -1,0 +1,15 @@
+{
+    "142": {
+        "sample_id": "142",
+        "nissl_dims_original": [
+            1333,
+            1333
+        ],
+        "bfw_dims_original": [
+            3088,
+            2076
+        ],
+        "apply_nissl_zoom_preprocessing": false,
+        "slices": []
+    }
+}

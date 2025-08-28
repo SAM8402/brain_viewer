@@ -10,3 +10,5 @@ app/backend/**/__pycache__
 *.jpg
 *.png
 *.jpeg
+LICENSE
+*.md

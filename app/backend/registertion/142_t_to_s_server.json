@@ -1,0 +1,772 @@
+{
+    "bfi-1.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-1.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-1.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-2.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-2.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-2.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-3.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-3.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-3.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-5.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-5.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-5.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-6.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-6.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-6.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-7.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-7.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-7.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-8.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-8.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-8.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-9.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-9.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-9.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-10.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-10.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-10.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    },
+    "bfi-11.png": {
+        "thumbnail_path": "../brainviewer/static/images_data/142/bfi-11.png",
+        "stack_path": "../brainviewer/static/images_data/142/bfi-11.png",
+        "status": "success",
+        "error_message": null,
+        "H_thumbnail_to_stack": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "H_stack_to_thumbnail": [
+            [
+                1.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                1.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                1.0
+            ]
+        ],
+        "corners_thumbnail_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "corners_stack_overlap": [
+            [
+                0,
+                0
+            ],
+            [
+                1333,
+                0
+            ],
+            [
+                1333,
+                1333
+            ],
+            [
+                0,
+                1333
+            ]
+        ],
+        "nissl_url": "https://apollo2.humanbrain.in/iipsrv/fcgi-bin/iipsrv.fcgi?FIF=/data/storageIIT/humanbrain/analytics/142/NISL/B_142_FB34-SL_1-ST_NISL-SE_1_compressed.jp2&WID=512&CVT=png"
+    }
+}
